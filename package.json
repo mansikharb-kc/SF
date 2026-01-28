@@ -14,11 +14,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/client": "^7.3.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "googleapis": "^170.1.0",
-    "mysql2": "^3.16.1"
+    "mysql2": "^3.16.1",
+    "prisma": "^7.3.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.23",
