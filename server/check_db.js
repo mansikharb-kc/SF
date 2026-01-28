@@ -2,32 +2,22 @@ const { Client } = require('pg');
 require('dotenv').config();
 
 async function check() {
-    console.log('--- Database Connection Check ---');
-    console.log('Host:', process.env.DB_HOST);
-    console.log('User:', process.env.DB_USER);
-    // Do not log password
-    console.log('Database:', process.env.DB_NAME);
+    console.log('--- Database Connection Check (Neon) ---');
+    console.log('URL:', process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@')); // Hide password
 
     const client = new Client({
-        host: process.env.DB_HOST,
-        port: process.env.DB_PORT,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: 'postgres'
+        connectionString: process.env.DATABASE_URL,
+        ssl: {
+            rejectUnauthorized: false
+        }
     });
 
     try {
         await client.connect();
-        console.log('✅ Connection to PostgreSQL Server: SUCCESS');
+        console.log('✅ Connection to Neon PostgreSQL: SUCCESS');
 
-        const res = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [process.env.DB_NAME]);
-        if (res.rowCount === 0) {
-            console.log(`Database ${process.env.DB_NAME} does NOT exist. Creating...`);
-            await client.query(`CREATE DATABASE "${process.env.DB_NAME}"`);
-            console.log(`✅ Database ${process.env.DB_NAME}: CREATED`);
-        } else {
-            console.log(`✅ Database ${process.env.DB_NAME}: EXISTS`);
-        }
+        const res = await client.query('SELECT current_database(), current_user, version()');
+        console.log('Database Info:', res.rows[0]);
 
         await client.end();
         console.log('--- Done ---');
