@@ -1,0 +1,27 @@
+import axios from 'axios';
+
+const API = axios.create({
+    baseURL: 'http://localhost:5000/api',
+});
+
+export const syncSheet = async (spreadsheetId) => {
+    const response = await API.post('/sync', { spreadsheetId });
+    return response.data;
+};
+
+export const getHistory = async () => {
+    const response = await API.get('/history');
+    return response.data;
+};
+
+export const getData = async (tableName, batchId) => {
+    const response = await API.get(`/data/${tableName}`, {
+        params: { batchId }
+    });
+    return response.data;
+};
+
+export const deleteRecord = async (tableName, id) => {
+    const response = await API.delete(`/data/${tableName}/${id}`);
+    return response.data;
+};
