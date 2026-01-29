@@ -3,21 +3,26 @@ const router = express.Router();
 const { syncSheetToDb } = require('../services/syncService');
 const { db } = require('../db');
 
-// Trigger Sync
-router.post('/sync', async (req, res) => {
-    // Determine trigger source if needed, but endpoint implies manual usually
+// Trigger Sync (Background)
+router.post('/sync', (req, res) => {
     const triggerType = 'MANUAL';
 
-    try {
-        const result = await syncSheetToDb(triggerType);
-        res.json(result);
-    } catch (error) {
-        if (error.message === 'SYNC_IN_PROGRESS') {
-            return res.status(409).json({ error: 'Sync already in progress' });
-        }
-        console.error(error);
-        res.status(500).json({ error: error.message });
-    }
+    // Start sync in background
+    syncSheetToDb(triggerType)
+        .then(result => {
+            console.log('✅ Background sync finished:', result.batchId);
+        })
+        .catch(error => {
+            if (error.message !== 'SYNC_IN_PROGRESS') {
+                console.error('❌ Background sync failed:', error);
+            }
+        });
+
+    // Respond immediately
+    res.json({
+        started: true,
+        message: 'Sync started in the background. Please refresh in a few minutes.'
+    });
 });
 
 // Get Stats

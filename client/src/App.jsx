@@ -30,25 +30,29 @@ function App() {
   };
 
   const handleSync = async () => {
-    // No explicit arg needed, backend handles hardcoded logic
     setLoading(true);
-    setSyncResult(null); // Reset previous result
+    setSyncResult(null);
     try {
-      const result = await syncSheet(null); // Backend API updated to ignore arg or default to manual
-      setSyncResult(result);
-      await fetchHistory();
+      const result = await syncSheet(null);
+
+      if (result.started) {
+        alert("Sync started in the background! Please wait 1-2 minutes for the data to appear.");
+        // We don't set syncResult because the full details aren't ready yet
+      } else {
+        setSyncResult(result);
+      }
+
+      // Delay history fetch slightly to give backend time to log the entry
+      setTimeout(() => fetchHistory(), 3000);
+
     } catch (error) {
       console.error("Sync error details:", error);
-      // Check for 409
       if (error.response && error.response.status === 409) {
         alert("Sync is already running! Please wait.");
       } else {
         const errorData = error.response?.data;
         const errorMsg = errorData?.error || errorData?.message || error.message || "Unknown error";
-
-        // Final safety: if errorMsg is still an object, stringify it
         const finalMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg, null, 2) : errorMsg;
-
         alert("Sync Failed: " + finalMsg);
       }
     } finally {
