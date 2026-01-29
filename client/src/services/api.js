@@ -5,7 +5,7 @@ console.log("🌐 Initializing API with base URL:", apiBase);
 
 const API = axios.create({
     baseURL: apiBase,
-    timeout: 60000, // 60 seconds
+    timeout: 150000, // 150 seconds
 });
 
 export const syncSheet = async (spreadsheetId) => {

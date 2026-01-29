@@ -80,36 +80,36 @@ const insertNewRecords = async (tableName, headers, rows, batchId) => {
     if (!rows || rows.length === 0) return 0;
 
     const sanitizedTableName = sanitizeIdentifier(tableName);
-
-    // Use the same safe column names mapping
     const safeHeaders = headers.map(h => getSafeColumnName(h));
-
-    // Prepare insert query
-    // INSERT INTO table (safeCol1, safeCol2, _row_hash, _batch_id) VALUES ... ON CONFLICT DO NOTHING
     const fields = [...safeHeaders, '_row_hash', '_batch_id'];
     const columnsStr = fields.map(f => `"${f}"`).join(',');
 
-    // Flatten values and generate placeholders ($1, $2, ...), ($N+1, ... )
-    const flatValues = [];
-    const rowPlaceholders = [];
+    const BATCH_SIZE = 500;
+    let totalInserted = 0;
 
-    rows.forEach((row, rowIndex) => {
-        const rowData = headers.map((_, i) => row[i] || null);
-        const hash = generateRowHash(rowData);
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+        const flatValues = [];
+        const rowPlaceholders = [];
 
-        // Add values to flat array
-        flatValues.push(...rowData, hash, batchId);
+        batch.forEach((row, rowIndex) => {
+            const rowData = headers.map((_, colIdx) => row[colIdx] || null);
+            const hash = generateRowHash(rowData);
+            flatValues.push(...rowData, hash, batchId);
 
-        // Generate placeholders for this row
-        const startIdx = rowIndex * fields.length + 1;
-        const placeholders = Array.from({ length: fields.length }, (_, i) => `$${startIdx + i}`).join(',');
-        rowPlaceholders.push(`(${placeholders})`);
-    });
+            const startIdx = rowIndex * fields.length + 1;
+            const placeholders = Array.from({ length: fields.length }, (_, pi) => `$${startIdx + pi}`).join(',');
+            rowPlaceholders.push(`(${placeholders})`);
+        });
 
-    const sql = `INSERT INTO "${sanitizedTableName}" (${columnsStr}) VALUES ${rowPlaceholders.join(',')} ON CONFLICT DO NOTHING`;
+        const sql = `INSERT INTO "${sanitizedTableName}" (${columnsStr}) VALUES ${rowPlaceholders.join(',')} ON CONFLICT DO NOTHING`;
+        const result = await db.query(sql, flatValues);
+        totalInserted += result.rowCount;
 
-    const result = await db.query(sql, flatValues);
-    return result.rowCount;
+        console.log(`[Batch] Inserted ${i + batch.length}/${rows.length} rows into ${sanitizedTableName}...`);
+    }
+
+    return totalInserted;
 };
 
 const logSync = async (sheetName, tableName, details, batchId, status = 'SUCCESS', triggerType = 'MANUAL') => {
