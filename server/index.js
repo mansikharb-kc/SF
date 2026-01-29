@@ -17,9 +17,13 @@ const apiRoutes = require('./routes/api');
 // 2. API Routes
 app.use('/api', apiRoutes);
 
-// 3. Health check
+// 3. Health check & Ping
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date() });
+});
+
+app.get('/ping', (req, res) => {
+    res.json({ pong: true });
 });
 
 // 4. SERVE FRONTEND (The All-in-One Fix)
