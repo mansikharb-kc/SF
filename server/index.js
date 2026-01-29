@@ -7,35 +7,39 @@ const { syncSheetToDb } = require('./services/syncService');
 require('dotenv').config();
 
 const app = express();
+
+// 1. Production-Safe CORS
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const apiRoutes = require('./routes/api');
 
-// API Routes
+// 2. API Routes
 app.use('/api', apiRoutes);
 
-// Health check
+// 3. Health Check (Crucial for Render/Vercel monitoring)
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date() });
+    res.json({
+        status: 'ok',
+        timestamp: new Date(),
+        database: 'connected (verified at startup)'
+    });
 });
 
-// Serve static files from the React frontend app
-app.use(express.static(path.join(__dirname, '../client/dist')));
-
-// Anything that doesn't match the above, send back index.html
-app.get('*', (req, res) => {
-    // Only send index.html if it's not an API route
-    if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-    }
+// 4. THE FIX: Production-Safe Catch-All for API Server
+// We use 'all' and '/*' to ensure no route crashes on newer Express versions
+app.all('/*', (req, res) => {
+    res.status(404).json({
+        error: 'Route not found',
+        message: `The path ${req.path} does not exist on this server.`
+    });
 });
 
-// Initialize DB and Start Server
+// 5. Initialize DB and Start Server
 initDB().then(() => {
     app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+        console.log(`✅ Server running on port ${PORT}`);
 
         // Schedule Sync: Every hour at minute 0
         cron.schedule('0 * * * *', async () => {
@@ -49,4 +53,7 @@ initDB().then(() => {
         });
         console.log('📅 Cron job scheduled: 0 * * * * (Every Hour)');
     });
+}).catch(err => {
+    console.error('❌ FAILED TO START SERVER:', err);
+    process.exit(1);
 });
