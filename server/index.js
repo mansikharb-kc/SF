@@ -14,7 +14,6 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.options('/*', cors());
 app.use(express.json());
 
 const apiRoutes = require('./routes/api');
@@ -30,11 +29,13 @@ app.use('/api', apiRoutes);
 const frontendPath = path.join(__dirname, '../client/dist');
 app.use(express.static(frontendPath));
 
-// 5. SPA Catch-all (Must be last)
+// 5. API Fallback (404 for unknown /api routes)
+app.all('/api/*', (req, res) => {
+    res.status(404).json({ message: 'API route not found' });
+});
+
+// 6. SPA Catch-all (Send all other requests to the frontend)
 app.get('/*', (req, res) => {
-    if (req.path.startsWith('/api')) {
-        return res.status(404).json({ message: 'API route not found' });
-    }
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
