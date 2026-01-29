@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
 console.log("🌐 Initializing API with base URL:", apiBase);
 
 const API = axios.create({
-    baseURL: apiBase,
-    timeout: 150000, // 150 seconds
+    baseURL: apiBase === '/api' && !import.meta.env.PROD ? 'http://localhost:5000/api' : apiBase,
+    timeout: 150000,
 });
 
 export const syncSheet = async (spreadsheetId) => {

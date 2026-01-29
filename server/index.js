@@ -2,18 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { initDB } = require('./db');
+const path = require('path');
 const cron = require('node-cron');
 const { syncSheetToDb } = require('./services/syncService');
 
 const app = express();
 
-// 1. Production-Safe CORS
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.options('*', cors());
+// 1. Basic Middleware
+app.use(cors());
 app.use(express.json());
 
 const apiRoutes = require('./routes/api');
@@ -26,18 +22,27 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date() });
 });
 
-// 4. Node 22-safe catch-all
-app.use((req, res) => {
-    res.status(404).json({ message: 'Route not found' });
+// 4. SERVE FRONTEND (The All-in-One Fix)
+// This tells the server to look for your website files in the client/dist folder
+const frontendPath = path.join(__dirname, '../client/dist');
+app.use(express.static(frontendPath));
+
+// 5. THE FIX: Node 22-safe catch-all
+// If it's not an API call, send the user to the website (index.html)
+app.get('/*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(frontendPath, 'index.html'));
+    } else {
+        res.status(404).json({ message: 'API Route not found' });
+    }
 });
 
 const PORT = process.env.PORT || 10000;
 
-// 🚀 Faster Startup: Listen for Port first, then Init DB
+// 🚀 Start Server
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Server is awake and listening on port ${PORT}`);
+    console.log(`✅ All-in-One Server running on port ${PORT}`);
 
-    // Initialize DB connection in the background
     initDB().then(() => {
         console.log('📅 Starting Cron Scheduler...');
         cron.schedule('0 * * * *', async () => {
@@ -49,8 +54,7 @@ app.listen(PORT, '0.0.0.0', () => {
                 console.error('❌ Scheduled sync failed:', e);
             }
         });
-        console.log('📅 Cron job scheduled: 0 * * * *');
     }).catch(err => {
-        console.error('❌ BACKGROUND DB INIT FAILED:', err);
+        console.error('❌ DB INIT FAILED:', err);
     });
 });
