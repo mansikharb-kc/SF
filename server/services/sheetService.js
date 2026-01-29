@@ -5,15 +5,28 @@ require('dotenv').config();
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
 
 const getAuth = () => {
+    // Priority 1: Check for JSON content in environment variable (Render/Heroku style)
+    if (process.env.GOOGLE_CREDENTIALS_JSON) {
+        try {
+            const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+            return new google.auth.GoogleAuth({
+                credentials,
+                scopes: SCOPES,
+            });
+        } catch (e) {
+            console.error('Failed to parse GOOGLE_CREDENTIALS_JSON environment variable:', e);
+        }
+    }
+
+    // Priority 2: Use keyFile path if provided (Local style)
     const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
         ? path.resolve(process.env.GOOGLE_APPLICATION_CREDENTIALS)
         : path.join(__dirname, '../credentials.json');
 
-    const auth = new google.auth.GoogleAuth({
+    return new google.auth.GoogleAuth({
         keyFile: credentialsPath,
         scopes: SCOPES,
     });
-    return auth;
 };
 
 const getSheetsService = () => {
