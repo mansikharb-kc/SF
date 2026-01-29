@@ -1,47 +1,39 @@
 const express = require('express');
 const cors = require('cors');
 const { initDB } = require('./db');
-const path = require('path');
 const cron = require('node-cron');
 const { syncSheetToDb } = require('./services/syncService');
 require('dotenv').config();
 
 const app = express();
 
-// 1. Production-Safe CORS
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
 const apiRoutes = require('./routes/api');
 
-// 2. API Routes
+// 1. API Routes
 app.use('/api', apiRoutes);
 
-// 3. Health Check (Crucial for Render/Vercel monitoring)
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        timestamp: new Date(),
-        database: 'connected (verified at startup)'
-    });
+// 2. Health check
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date() });
 });
 
-// 4. THE FIX: Production-Safe Catch-All for API Server
-// We use 'all' and '/*' to ensure no route crashes on newer Express versions
-app.all('/*', (req, res) => {
-    res.status(404).json({
-        error: 'Route not found',
-        message: `The path ${req.path} does not exist on this server.`
-    });
+// 3. THE FIX: Node 22-safe catch-all (Must be LAST)
+app.use((req, res) => {
+    res.status(404).json({ message: 'Route not found' });
 });
 
-// 5. Initialize DB and Start Server
+// 4. Port Binding (Render detects process.env.PORT)
+const PORT = process.env.PORT || 10000;
+
+// Initialize DB and Start Server
 initDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`✅ Server running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on port ${PORT}`);
 
-        // Schedule Sync: Every hour at minute 0
+        // Schedule Sync: Every hour
         cron.schedule('0 * * * *', async () => {
             console.log('⏳ Running scheduled sync...');
             try {
@@ -51,7 +43,7 @@ initDB().then(() => {
                 console.error('❌ Scheduled sync failed:', e);
             }
         });
-        console.log('📅 Cron job scheduled: 0 * * * * (Every Hour)');
+        console.log('📅 Cron job scheduled: 0 * * * *');
     });
 }).catch(err => {
     console.error('❌ FAILED TO START SERVER:', err);
