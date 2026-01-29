@@ -38,11 +38,13 @@ function App() {
       setSyncResult(result);
       await fetchHistory();
     } catch (error) {
+      console.error("Sync error details:", error);
       // Check for 409
       if (error.response && error.response.status === 409) {
         alert("Sync is already running! Please wait.");
       } else {
-        alert("Sync Failed: " + (error.response?.data?.error || error.message));
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || "Unknown error";
+        alert("Sync Failed: " + errorMsg);
       }
     } finally {
       setLoading(false);
