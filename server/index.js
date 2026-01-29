@@ -29,13 +29,13 @@ app.use('/api', apiRoutes);
 const frontendPath = path.join(__dirname, '../client/dist');
 app.use(express.static(frontendPath));
 
-// 5. API Fallback (404 for unknown /api routes)
-app.all('/api/*', (req, res) => {
+// 5. API Fallback (404 for unknown /api routes) - Using Regex for Express 5 safety
+app.all(/^\/api\/.*$/, (req, res) => {
     res.status(404).json({ message: 'API route not found' });
 });
 
-// 6. SPA Catch-all (Send all other requests to the frontend)
-app.get('/*', (req, res) => {
+// 6. SPA Catch-all (Send all non-API requests to the frontend) - Using Regex for Express 5 safety
+app.get(/^(?!\/api).*$/, (req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
