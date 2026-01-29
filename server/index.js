@@ -1,9 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { initDB } = require('./db');
 const cron = require('node-cron');
 const { syncSheetToDb } = require('./services/syncService');
-require('dotenv').config();
 
 const app = express();
 
