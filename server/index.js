@@ -7,7 +7,13 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(cors());
+// 1. Production-Safe CORS
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.options('*', cors()); // Enable pre-flight for all routes
 app.use(express.json());
 
 const apiRoutes = require('./routes/api');

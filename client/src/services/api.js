@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+console.log("🌐 Initializing API with base URL:", apiBase);
+
 const API = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+    baseURL: apiBase,
 });
 
 export const syncSheet = async (spreadsheetId) => {
