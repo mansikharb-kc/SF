@@ -43,8 +43,13 @@ function App() {
       if (error.response && error.response.status === 409) {
         alert("Sync is already running! Please wait.");
       } else {
-        const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || "Unknown error";
-        alert("Sync Failed: " + errorMsg);
+        const errorData = error.response?.data;
+        const errorMsg = errorData?.error || errorData?.message || error.message || "Unknown error";
+
+        // Final safety: if errorMsg is still an object, stringify it
+        const finalMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg, null, 2) : errorMsg;
+
+        alert("Sync Failed: " + finalMsg);
       }
     } finally {
       setLoading(false);
@@ -86,7 +91,10 @@ function App() {
       setViewData(prev => prev.filter(item => item.sheet_id !== id));
     } catch (error) {
       console.error("Failed to delete record", error);
-      alert("Delete Failed: " + (error.response?.data?.error || error.message));
+      const errorData = error.response?.data;
+      const errorMsg = errorData?.error || errorData?.message || error.message || "Unknown error";
+      const finalMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg, null, 2) : errorMsg;
+      alert("Delete Failed: " + finalMsg);
     }
   };
 
@@ -122,7 +130,10 @@ function App() {
 
     } catch (error) {
       console.error("Manual delete failed", error);
-      alert("Delete Failed: " + (error.response?.data?.error || error.message));
+      const errorData = error.response?.data;
+      const errorMsg = errorData?.error || errorData?.message || error.message || "Unknown error";
+      const finalMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg, null, 2) : errorMsg;
+      alert("Delete Failed: " + finalMsg);
     } finally {
       setLoading(false);
     }
