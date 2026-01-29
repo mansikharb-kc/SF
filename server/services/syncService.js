@@ -7,7 +7,8 @@ const { db } = require('../db');
 let isSyncing = false;
 
 // Hardcoded Spreadsheet ID
-const SPREADSHEET_ID = '1ZOmUOP091D0KE7tREyj533wjBsamGhb0kRyORksEZiY';
+// Spreadsheet ID from Env or hardcoded fallback
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1ZOmUOP091D0KE7tREyj533wjBsamGhb0kRyORksEZiY';
 
 const syncSheetToDb = async (triggerType = 'MANUAL') => {
     if (isSyncing) {
