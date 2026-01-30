@@ -56,58 +56,76 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
 
             if (headers.length === 0) continue;
 
-            const tempTableName = 'temp_leads';
             const targetTableName = 'leads';
+            const tempTableName = 'temp_leads';
 
-            // 1. Prepare Temp Table (temp_leads)
-            // We DROP temp_leads first to ensure clean state
-            await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`);
-            await ensureTableExists(tempTableName, headers);
+            // Ensure Target Table Exists before starting (using first sheet with headers if available, or just a safe check)
+            // We'll detect headers for each sheet but they should be consistent.
 
-            // 2. Insert Records into temp_leads
-            const insertedTempCount = await insertNewRecords(tempTableName, headers, rows, batchId);
-            console.log(`Inserted ${insertedTempCount} rows into ${tempTableName}.`);
+            for (const sheet of sheets) {
+                const sheetTitle = sheet.properties.title;
+                console.log(`Processing Sheet: ${sheetTitle}`);
 
-            // 3. Merge temp_leads -> Leads
-            // Ensure 'leads' exists
-            await ensureTableExists(targetTableName, headers);
+                try {
+                    // Read Data
+                    const data = await getSheetValues(SPREADSHEET_ID, `'${sheetTitle}'!A:ZZ`);
 
-            // Clear the target table before new sync (as requested)
-            try {
-                await truncateTable(targetTableName);
-                console.log(`✅ Table ${targetTableName} cleared before sync.`);
-            } catch (clearError) {
-                console.warn(`⚠️ Could not clear ${targetTableName} (it might not exist yet):`, clearError.message);
+                    if (!data || data.length === 0) {
+                        console.log(`Sheet ${sheetTitle} is empty.`);
+                        results.push({ sheet: sheetTitle, status: 'EMPTY' });
+                        continue;
+                    }
+
+                    const headers = data[0];
+                    const rows = data.slice(1);
+
+                    if (headers.length === 0) continue;
+
+                    // 1. Prepare Temp Table
+                    await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`);
+                    await ensureTableExists(tempTableName, headers);
+
+                    // 2. Insert Records into temp_leads
+                    const insertedTempCount = await insertNewRecords(tempTableName, headers, rows, batchId);
+                    console.log(`Inserted ${insertedTempCount} rows into ${tempTableName}.`);
+
+                    // 3. Merge temp_leads -> Leads (Differential Sync)
+                    // Ensure target table exists (with headers from this sheet)
+                    await ensureTableExists(targetTableName, headers);
+
+                    const mergeResult = await mergeTempToLeads(tempTableName, targetTableName);
+
+                    // 4. Log
+                    await logSync(
+                        sheetTitle,
+                        targetTableName,
+                        {
+                            tempInserted: insertedTempCount,
+                            leadsDeleted: mergeResult.deletedCount,
+                            leadsInserted: mergeResult.insertedCount
+                        },
+                        batchId,
+                        mergeResult.success ? 'SUCCESS' : 'FAILED',
+                        triggerType
+                    );
+
+                    results.push({
+                        sheet: sheetTitle,
+                        table: targetTableName,
+                        inserted: mergeResult.insertedCount,
+                        status: 'SUCCESS',
+                        columns: headers
+                    });
+
+                    console.log(`Synced ${sheetTitle} to ${targetTableName} (+${mergeResult.insertedCount} records).`);
+                } catch (sheetError) {
+                    console.error(`❌ Error syncing sheet "${sheetTitle}":`, sheetError.message);
+                    results.push({ sheet: sheetTitle, status: 'FAILED', error: sheetError.message });
+                } finally {
+                    // 5. Clear Temp
+                    try { await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`); } catch (e) { }
+                }
             }
-
-            const mergeResult = await mergeTempToLeads(tempTableName, targetTableName);
-
-            // 4. Log
-            await logSync(
-                sheetTitle,
-                targetTableName,
-                {
-                    tempInserted: insertedTempCount,
-                    leadsDeleted: mergeResult.deletedCount,
-                    leadsInserted: mergeResult.insertedCount
-                },
-                batchId,
-                mergeResult.success ? 'SUCCESS' : 'FAILED',
-                triggerType
-            );
-
-            // 5. Clear Temp
-            await truncateTable(tempTableName);
-
-            results.push({
-                sheet: sheetTitle,
-                table: targetTableName,
-                inserted: mergeResult.insertedCount,
-                status: 'SUCCESS',
-                columns: headers
-            });
-
-            console.log(`Synced ${sheetTitle} to ${targetTableName}.`);
         }
 
         return { batchId, results };
