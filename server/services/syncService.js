@@ -8,7 +8,7 @@ let isSyncing = false;
 
 // Hardcoded Spreadsheet ID
 // Spreadsheet ID from Env or hardcoded fallback
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1ZOmUOP091D0KE7tREyj533wjBsamGhb0kRyORksEZiY';
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '17uLgiXTVzIDjP67K9-HzCbiWDOlB3B4LnEZQj8EvArU';
 
 const syncSheetToDb = async (triggerType = 'MANUAL') => {
     if (isSyncing) {
