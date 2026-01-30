@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { initDB } = require('./db');
-const path = require('path');
 const cron = require('node-cron');
 const { syncSheetToDb } = require('./services/syncService');
 
@@ -19,30 +18,29 @@ app.use(express.json());
 const apiRoutes = require('./routes/api');
 
 // 2. Health & Ping (Fast checks for Render)
+app.get('/', (req, res) => res.status(200).send('Backend is running 🚀'));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/ping', (req, res) => res.json({ pong: true }));
 
 // 3. API Routes
 app.use('/api', apiRoutes);
 
-// 4. SERVE FRONTEND
-const frontendPath = path.join(__dirname, '../client/dist');
-app.use(express.static(frontendPath));
-
-// 5. API Fallback (404 for unknown /api routes) - Using Regex for Express 5 safety
+// 4. API Fallback (404 for unknown /api routes)
 app.all(/^\/api\/.*$/, (req, res) => {
     res.status(404).json({ message: 'API route not found' });
 });
 
-// 6. SPA Catch-all (Send all non-API requests to the frontend) - Using Regex for Express 5 safety
-app.get(/^(?!\/api).*$/, (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
+// 5. Catch-all for non-API routes (Optional, but good for clarity)
+app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+        res.status(404).json({ message: 'Resource not found' });
+    }
 });
 
 // 🚀 CRITICAL: Bind to port IMMEDIATELY for Render
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ All-in-One Server is LIVE on port ${PORT}`);
+    console.log(`✅ Backend Server is LIVE on port ${PORT}`);
 
     // Connect to DB in background so port binding isn't delayed
     initDB().then(() => {
