@@ -85,28 +85,49 @@ const insertNewRecords = async (tableName, headers, rows, batchId) => {
     const columnsStr = fields.map(f => `"${f}"`).join(',');
 
     const BATCH_SIZE = 500;
+    const idColIndex = headers.findIndex(h => getSafeColumnName(h) === 'sheet_id');
     let totalInserted = 0;
+    let totalSkipped = 0;
 
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const batch = rows.slice(i, i + BATCH_SIZE);
         const flatValues = [];
         const rowPlaceholders = [];
+        let validRowsInBatch = 0;
 
-        batch.forEach((row, rowIndex) => {
+        batch.forEach((row) => {
+            const idValue = idColIndex !== -1 ? (row[idColIndex] || '').toString().trim() : '';
+
+            if (!idValue) {
+                totalSkipped++;
+                return; // Skip this row
+            }
+
             const rowData = headers.map((_, colIdx) => row[colIdx] || null);
             const hash = generateRowHash(rowData);
             flatValues.push(...rowData, hash, batchId);
 
-            const startIdx = rowIndex * fields.length + 1;
+            const startIdx = validRowsInBatch * fields.length + 1;
             const placeholders = Array.from({ length: fields.length }, (_, pi) => `$${startIdx + pi}`).join(',');
             rowPlaceholders.push(`(${placeholders})`);
+            validRowsInBatch++;
         });
 
-        const sql = `INSERT INTO "${sanitizedTableName}" (${columnsStr}) VALUES ${rowPlaceholders.join(',')} ON CONFLICT DO NOTHING`;
-        const result = await db.query(sql, flatValues);
-        totalInserted += result.rowCount;
+        if (validRowsInBatch > 0) {
+            try {
+                const sql = `INSERT INTO "${sanitizedTableName}" (${columnsStr}) VALUES ${rowPlaceholders.join(',')} ON CONFLICT DO NOTHING`;
+                const result = await db.query(sql, flatValues);
+                totalInserted += result.rowCount;
+                console.log(`[Batch] Processed ${i + batch.length}/${rows.length} rows into ${sanitizedTableName} (Inserted: ${result.rowCount})`);
+            } catch (err) {
+                console.error(`❌ [Batch Failure] Failed to insert batch starting at row ${i}:`, err.message);
+                // Fallback: try inserting one by one in this batch? (Optional, but let's just log for now)
+            }
+        }
+    }
 
-        console.log(`[Batch] Inserted ${i + batch.length}/${rows.length} rows into ${sanitizedTableName}...`);
+    if (totalSkipped > 0) {
+        console.warn(`⚠️ Skipped ${totalSkipped} rows in ${tableName} due to missing ID.`);
     }
 
     return totalInserted;
