@@ -22,10 +22,25 @@ app.get('/', (req, res) => res.status(200).send('Backend is running 🚀'));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/ping', (req, res) => res.json({ pong: true }));
 
-// 3. API Routes
+// 3. External Cron Sync Endpoint (Wakes Render from sleep)
+app.get('/cron-sync', async (req, res) => {
+    console.log('⏰ GitHub Action Cron Sync Trigger Received');
+    try {
+        await syncSheetToDb('AUTO');
+        res.json({ success: true, message: 'Sync completed' });
+    } catch (error) {
+        if (error.message === 'SYNC_IN_PROGRESS') {
+            return res.json({ success: true, message: 'Sync already in progress' });
+        }
+        console.error('❌ Cron sync failed:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 4. API Routes
 app.use('/api', apiRoutes);
 
-// 4. Safe 404 Handler (Avoids wildcard '*' crash in Express 5 / Node 22)
+// 5. Safe 404 Handler
 app.use((req, res) => {
     res.status(404).json({ error: "Route not found" });
 });
@@ -37,14 +52,15 @@ app.listen(PORT, '0.0.0.0', () => {
 
     // Connect to DB in background so port binding isn't delayed
     initDB().then(() => {
-        console.log('📅 Starting Cron Scheduler...');
+        console.log('📅 Starting Backup Internal Cron Scheduler...');
+        // Every 10 minutes (Fallback if server is already awake)
         cron.schedule('*/10 * * * *', async () => {
             try {
                 await syncSheetToDb('AUTO');
-                console.log('✅ Scheduled sync success');
+                console.log('✅ Internal sync success');
             } catch (e) {
                 if (e.message !== 'SYNC_IN_PROGRESS') {
-                    console.error('❌ Scheduled sync failed', e);
+                    console.error('❌ Internal sync failed', e);
                 }
             }
         });
