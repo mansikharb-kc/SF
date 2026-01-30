@@ -25,6 +25,21 @@ router.post('/sync', (req, res) => {
     });
 });
 
+// External Cron Trigger (Wakes up server if asleep)
+router.get('/cron', async (req, res) => {
+    console.log('⏰ External cron trigger received');
+    try {
+        await syncSheetToDb('AUTO');
+        res.json({ success: true, message: 'Cron sync completed' });
+    } catch (error) {
+        if (error.message === 'SYNC_IN_PROGRESS') {
+            return res.json({ success: true, message: 'Sync already in progress' });
+        }
+        console.error('❌ External cron trigger failed:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get Stats
 router.get('/stats', async (req, res) => {
     const { getStats } = require('../services/dbService');

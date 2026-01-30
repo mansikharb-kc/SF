@@ -47,12 +47,14 @@ app.listen(PORT, '0.0.0.0', () => {
     // Connect to DB in background so port binding isn't delayed
     initDB().then(() => {
         console.log('📅 Starting Cron Scheduler...');
-        cron.schedule('0 * * * *', async () => {
+        cron.schedule('*/10 * * * *', async () => {
             try {
                 await syncSheetToDb('AUTO');
                 console.log('✅ Scheduled sync success');
             } catch (e) {
-                console.error('❌ Scheduled sync failed', e);
+                if (e.message !== 'SYNC_IN_PROGRESS') {
+                    console.error('❌ Scheduled sync failed', e);
+                }
             }
         });
     }).catch(err => console.error('❌ Background DB error:', err));
