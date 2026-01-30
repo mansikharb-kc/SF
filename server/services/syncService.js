@@ -72,6 +72,14 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
             // Ensure 'leads' exists
             await ensureTableExists(targetTableName, headers);
 
+            // Clear the target table before new sync (as requested)
+            try {
+                await truncateTable(targetTableName);
+                console.log(`✅ Table ${targetTableName} cleared before sync.`);
+            } catch (clearError) {
+                console.warn(`⚠️ Could not clear ${targetTableName} (it might not exist yet):`, clearError.message);
+            }
+
             const mergeResult = await mergeTempToLeads(tempTableName, targetTableName);
 
             // 4. Log
