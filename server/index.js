@@ -25,16 +25,9 @@ app.get('/ping', (req, res) => res.json({ pong: true }));
 // 3. API Routes
 app.use('/api', apiRoutes);
 
-// 4. API Fallback (404 for unknown /api routes)
-app.all(/^\/api\/.*$/, (req, res) => {
-    res.status(404).json({ message: 'API route not found' });
-});
-
-// 5. Catch-all for non-API routes (Optional, but good for clarity)
-app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-        res.status(404).json({ message: 'Resource not found' });
-    }
+// 4. Safe 404 Handler (Avoids wildcard '*' crash in Express 5 / Node 22)
+app.use((req, res) => {
+    res.status(404).json({ error: "Route not found" });
 });
 
 // 🚀 CRITICAL: Bind to port IMMEDIATELY for Render
