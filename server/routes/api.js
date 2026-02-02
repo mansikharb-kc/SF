@@ -130,6 +130,7 @@ router.delete('/data/:tableName/:id', async (req, res) => {
         client.release();
     }
 });
+
 // --- AUTHENTICATION FLOW (MANDATORY) ---
 
 // 1. Request OTP (Registration Step 1)
@@ -247,45 +248,50 @@ router.post('/register', async (req, res) => {
 
 // 4. Login
 router.post('/login', async (req, res) => {
-    let { email, password } = req.body;
-    const bcrypt = require('bcryptjs');
-
-    console.log(`[Login Attempt] Email: ${email}`);
-
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    email = email.toLowerCase().trim();
-
     try {
-        const { rows } = await db.query('SELECT * FROM "users" WHERE email = $1', [email]);
+        const { email, password } = req.body;
+        const bcrypt = require('bcryptjs');
 
+        // Debugging for Render
+        console.log("LOGIN BODY:", { email, password: password ? '********' : 'MISSING' });
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        const { rows } = await db.query('SELECT * FROM "users" WHERE email = $1', [normalizedEmail]);
+
+        // FIX 3: Handle missing user safely
         if (rows.length === 0) {
-            console.log(`[Login Info] User not found: ${email}`);
+            console.log(`[Login Info] User not found: ${normalizedEmail}`);
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
         const user = rows[0];
+
+        // FIX 2: Ensure correct bcryptjs usage
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
-        console.log(`[Login Info] Match result: ${isMatch}`);
+        console.log(`[Login Info] Match result for ${normalizedEmail}: ${isMatch}`);
 
         if (!isMatch) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
         if (user.status !== 'ACTIVE') {
-            console.log(`[Login Info] Account not active: ${email}`);
+            console.log(`[Login Info] Account not active: ${normalizedEmail}`);
             return res.status(403).json({ error: 'Your account is not active' });
         }
 
-        console.log(`[Login Success] User: ${email}`);
+        console.log(`[Login Success] User: ${normalizedEmail}`);
         const { password_hash: _, ...userInfo } = user;
         res.json({ success: true, user: userInfo });
 
     } catch (error) {
-        console.error('Login error:', error);
+        // Render logs will now show exact reason
+        console.error("LOGIN ERROR:", error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
