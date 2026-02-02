@@ -6,9 +6,13 @@ const { db } = require('../db');
 // Concurrency Lock
 let isSyncing = false;
 
-// Hardcoded Spreadsheet ID
 // Spreadsheet ID from Env or hardcoded fallback
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '17uLgiXTVzIDjP67K9-HzCbiWDOlB3B4LnEZQj8EvArU';
+
+/**
+ * Helper for throttle/quota management
+ */
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const syncSheetToDb = async (triggerType = 'MANUAL') => {
     if (isSyncing) {
@@ -37,94 +41,76 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
 
         console.log(`Starting sync for Spreadsheet: ${meta.properties.title} (Batch: ${batchId})`);
 
+        const targetTableName = 'leads';
+        const tempTableName = 'temp_leads';
+
         for (const sheet of sheets) {
             const sheetTitle = sheet.properties.title;
+
+            // ⚠️ CRITICAL: Small delay to avoid Google Sheets API Rate Limits (429)
+            // Google Tier 1 quota is ~60-100 requests per minute.
+            await sleep(1500);
+
             console.log(`Processing Sheet: ${sheetTitle}`);
 
-            // Read Data
-            const data = await getSheetValues(SPREADSHEET_ID, `'${sheetTitle}'!A:ZZ`);
+            try {
+                // Read Data
+                const data = await getSheetValues(SPREADSHEET_ID, `'${sheetTitle}'!A:ZZ`);
 
-            if (!data || data.length === 0) {
-                console.log(`Sheet ${sheetTitle} is empty.`);
-                results.push({ sheet: sheetTitle, status: 'EMPTY' });
-                continue;
-            }
-
-            // Assume first row is Headers
-            const headers = data[0];
-            const rows = data.slice(1);
-
-            if (headers.length === 0) continue;
-
-            const targetTableName = 'leads';
-            const tempTableName = 'temp_leads';
-
-            // Ensure Target Table Exists before starting (using first sheet with headers if available, or just a safe check)
-            // We'll detect headers for each sheet but they should be consistent.
-
-            for (const sheet of sheets) {
-                const sheetTitle = sheet.properties.title;
-                console.log(`Processing Sheet: ${sheetTitle}`);
-
-                try {
-                    // Read Data
-                    const data = await getSheetValues(SPREADSHEET_ID, `'${sheetTitle}'!A:ZZ`);
-
-                    if (!data || data.length === 0) {
-                        console.log(`Sheet ${sheetTitle} is empty.`);
-                        results.push({ sheet: sheetTitle, status: 'EMPTY' });
-                        continue;
-                    }
-
-                    const headers = data[0];
-                    const rows = data.slice(1);
-
-                    if (headers.length === 0) continue;
-
-                    // 1. Prepare Temp Table
-                    await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`);
-                    await ensureTableExists(tempTableName, headers);
-
-                    // 2. Insert Records into temp_leads
-                    const insertedTempCount = await insertNewRecords(tempTableName, headers, rows, batchId);
-                    console.log(`Inserted ${insertedTempCount} rows into ${tempTableName}.`);
-
-                    // 3. Merge temp_leads -> Leads (Differential Sync)
-                    // Ensure target table exists (with headers from this sheet)
-                    await ensureTableExists(targetTableName, headers);
-
-                    const mergeResult = await mergeTempToLeads(tempTableName, targetTableName);
-
-                    // 4. Log
-                    await logSync(
-                        sheetTitle,
-                        targetTableName,
-                        {
-                            tempInserted: insertedTempCount,
-                            leadsDeleted: mergeResult.deletedCount,
-                            leadsInserted: mergeResult.insertedCount
-                        },
-                        batchId,
-                        mergeResult.success ? 'SUCCESS' : 'FAILED',
-                        triggerType
-                    );
-
-                    results.push({
-                        sheet: sheetTitle,
-                        table: targetTableName,
-                        inserted: mergeResult.insertedCount,
-                        status: 'SUCCESS',
-                        columns: headers
-                    });
-
-                    console.log(`Synced ${sheetTitle} to ${targetTableName} (+${mergeResult.insertedCount} records).`);
-                } catch (sheetError) {
-                    console.error(`❌ Error syncing sheet "${sheetTitle}":`, sheetError.message);
-                    results.push({ sheet: sheetTitle, status: 'FAILED', error: sheetError.message });
-                } finally {
-                    // 5. Clear Temp
-                    try { await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`); } catch (e) { }
+                if (!data || data.length === 0) {
+                    console.log(`Sheet ${sheetTitle} is empty.`);
+                    results.push({ sheet: sheetTitle, status: 'EMPTY' });
+                    continue;
                 }
+
+                const headers = data[0];
+                const rows = data.slice(1);
+
+                if (headers.length === 0) continue;
+
+                // 1. Prepare Temp Table
+                await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`);
+                await ensureTableExists(tempTableName, headers);
+
+                // 2. Insert Records into temp_leads
+                const insertedTempCount = await insertNewRecords(tempTableName, headers, rows, batchId);
+                console.log(`Inserted ${insertedTempCount} rows into ${tempTableName}.`);
+
+                // 3. Merge temp_leads -> Leads (Differential Sync)
+                // Ensure target table exists (with headers from this sheet)
+                await ensureTableExists(targetTableName, headers);
+
+                const mergeResult = await mergeTempToLeads(tempTableName, targetTableName);
+
+                // 4. Log
+                await logSync(
+                    sheetTitle,
+                    targetTableName,
+                    {
+                        tempInserted: insertedTempCount,
+                        leadsDeleted: mergeResult.deletedCount,
+                        leadsInserted: mergeResult.insertedCount
+                    },
+                    batchId,
+                    mergeResult.success ? 'SUCCESS' : 'FAILED',
+                    triggerType
+                );
+
+                results.push({
+                    sheet: sheetTitle,
+                    table: targetTableName,
+                    inserted: mergeResult.insertedCount,
+                    status: 'SUCCESS',
+                    columns: headers
+                });
+
+                console.log(`Synced ${sheetTitle} to ${targetTableName} (+${mergeResult.insertedCount} records).`);
+            } catch (sheetError) {
+                console.error(`❌ Error syncing sheet "${sheetTitle}":`, sheetError.message);
+                results.push({ sheet: sheetTitle, status: 'FAILED', error: sheetError.message });
+            } finally {
+                // 5. Clear Temp
+                try { await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`); } catch (e) { }
             }
         }
 

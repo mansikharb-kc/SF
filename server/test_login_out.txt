@@ -1,0 +1,5 @@
+﻿User found: mansi.kharb@kc-one.co
+Status: ACTIVE
+Hash length: 60
+Match with Admin@123: true
+Match with admin@123 (lowercase a): false
