@@ -130,7 +130,157 @@ router.delete('/data/:tableName/:id', async (req, res) => {
         client.release();
     }
 });
+// --- AUTHENTICATION FLOW (MANDATORY) ---
 
+// 1. Request OTP (Registration Step 1)
+router.post('/request-otp', async (req, res) => {
+    let { email, password, confirmPassword } = req.body;
+    const { sendAdminOtp } = require('../services/emailService');
 
+    if (!email || !password || !confirmPassword) {
+        return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    email = email.toLowerCase().trim();
+
+    if (password !== confirmPassword) {
+        return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    try {
+        const { rows: userExists } = await db.query('SELECT * FROM "users" WHERE email = $1', [email]);
+        if (userExists.length > 0) {
+            return res.status(400).json({ error: 'User already exists. Please log in.' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60000); // 10 minutes
+
+        await db.query(
+            'INSERT INTO "otps" (email, otp, expires_at, verified) VALUES ($1, $2, $3, $4)',
+            [email, otp, expiresAt, false]
+        );
+
+        console.log(`📩 OTP for ${email}: ${otp} (Sent to Admin)`);
+        await sendAdminOtp(email, otp);
+
+        res.json({
+            success: true,
+            message: 'Access request sent! Please contact the administrator for the 6-digit verification code.'
+        });
+    } catch (error) {
+        console.error('OTP Request error:', error);
+        res.status(500).json({ error: 'Failed to process request' });
+    }
+});
+
+// 2. Verify OTP (Registration Step 2)
+router.post('/verify-otp', async (req, res) => {
+    let { email, otp } = req.body;
+
+    if (!email || !otp) {
+        return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+
+    email = email.toLowerCase().trim();
+
+    try {
+        const { rows } = await db.query(
+            'SELECT * FROM "otps" WHERE email = $1 AND otp = $2 AND expires_at > CURRENT_TIMESTAMP AND verified = false ORDER BY created_at DESC LIMIT 1',
+            [email, otp]
+        );
+
+        if (rows.length === 0) {
+            return res.status(400).json({ error: 'Invalid or expired OTP' });
+        }
+
+        await db.query('UPDATE "otps" SET verified = true WHERE id = $1', [rows[0].id]);
+
+        res.json({ success: true, message: 'OTP verified successfully' });
+    } catch (error) {
+        console.error('OTP Verify error:', error);
+        res.status(500).json({ error: 'Verification failed' });
+    }
+});
+
+// 3. Complete Registration (User Creation)
+router.post('/register', async (req, res) => {
+    let { email, password } = req.body;
+    const bcrypt = require('bcryptjs');
+
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    email = email.toLowerCase().trim();
+
+    try {
+        const { rows: otpRows } = await db.query(
+            'SELECT * FROM "otps" WHERE email = $1 AND verified = true AND created_at > (CURRENT_TIMESTAMP - INTERVAL \'20 minutes\') ORDER BY created_at DESC LIMIT 1',
+            [email]
+        );
+
+        if (otpRows.length === 0) {
+            return res.status(403).json({ error: 'Please verify OTP before registering' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await db.query(
+            'INSERT INTO "users" (email, password_hash, status) VALUES ($1, $2, $3)',
+            [email, hashedPassword, 'ACTIVE']
+        );
+
+        await db.query('DELETE FROM "otps" WHERE email = $1', [email]);
+
+        res.status(201).json({
+            success: true,
+            message: 'Account created successfully! You can now log in.'
+        });
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(400).json({ error: 'User already exists' });
+        }
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 4. Login
+router.post('/login', async (req, res) => {
+    let { email, password } = req.body;
+    const bcrypt = require('bcryptjs');
+
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    email = email.toLowerCase().trim();
+
+    try {
+        const { rows } = await db.query('SELECT * FROM "users" WHERE email = $1', [email]);
+
+        if (rows.length === 0) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        const user = rows[0];
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        if (user.status !== 'ACTIVE') {
+            return res.status(403).json({ error: 'Your account is not active' });
+        }
+
+        const { password_hash: _, ...userInfo } = user;
+        res.json({ success: true, user: userInfo });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 module.exports = router;

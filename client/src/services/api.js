@@ -41,3 +41,26 @@ export const deleteRecord = async (tableName, id) => {
     const response = await API.delete(`/api/data/${tableName}/${id}`);
     return response.data;
 };
+
+export const loginUser = async (email, password) => {
+    const response = await API.post('/api/login', { email, password });
+    return response.data;
+};
+
+// Step 1: Request OTP
+export const requestOTP = async (email, password, confirmPassword) => {
+    const response = await API.post('/api/request-otp', { email, password, confirmPassword });
+    return response.data;
+};
+
+// Step 2: Verify OTP
+export const verifyOTP = async (email, otp) => {
+    const response = await API.post('/api/verify-otp', { email, otp });
+    return response.data;
+};
+
+// Step 3: Final Register
+export const registerUser = async (email, password) => {
+    const response = await API.post('/api/register', { email, password });
+    return response.data;
+};

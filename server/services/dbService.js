@@ -34,12 +34,17 @@ const getSafeColumnName = (header) => {
 const ensureTableExists = async (tableName, headers) => {
     const sanitizedTableName = sanitizeIdentifier(tableName);
 
+    const idIndex = headers.findIndex(h => getSafeColumnName(h) === 'sheet_id');
+
     // Map headers to safe column names
-    const columnsSQL = headers.map(h => {
-        const safeName = getSafeColumnName(h);
-        // sheet_id is the Primary Key
-        if (safeName === 'sheet_id') {
-            return `"${safeName}" VARCHAR(255) PRIMARY KEY`;
+    const columnsSQL = headers.map((h, index) => {
+        let safeName = getSafeColumnName(h);
+
+        // Use sheet_id if it's the named ID column OR if we're falling back to the first column
+        const isIdColumn = safeName === 'sheet_id' || (idIndex === -1 && index === 0);
+
+        if (isIdColumn) {
+            return `"sheet_id" VARCHAR(255) PRIMARY KEY`;
         }
         return `"${safeName}" TEXT`;
     }).join(', ');
@@ -85,7 +90,14 @@ const insertNewRecords = async (tableName, headers, rows, batchId) => {
     const columnsStr = fields.map(f => `"${f}"`).join(',');
 
     const BATCH_SIZE = 500;
-    const idColIndex = headers.findIndex(h => getSafeColumnName(h) === 'sheet_id');
+    let idColIndex = headers.findIndex(h => getSafeColumnName(h) === 'sheet_id');
+
+    // Fallback: If no column named "id" is found, assume the first column is the ID
+    if (idColIndex === -1 && headers.length > 0) {
+        idColIndex = 0;
+        console.log(`[ID Fallback] No 'id' column found in ${tableName}. Using first column "${headers[0]}" as ID.`);
+    }
+
     let totalInserted = 0;
     let totalSkipped = 0;
 
@@ -146,6 +158,7 @@ const logSync = async (sheetName, tableName, details, batchId, status = 'SUCCESS
        "batch_id" VARCHAR(64),
        "status" VARCHAR(50),
        "trigger_type" VARCHAR(20) DEFAULT 'MANUAL',
+       "inserted_count" INT DEFAULT 0,
        "temp_inserted_count" INT DEFAULT 0,
        "leads_deleted_count" INT DEFAULT 0,
        "leads_inserted_count" INT DEFAULT 0,
@@ -155,18 +168,19 @@ const logSync = async (sheetName, tableName, details, batchId, status = 'SUCCESS
 
     // Schema migration for existing table
     try {
-        await db.query(`ALTER TABLE "sync_logs" ADD COLUMN "temp_inserted_count" INT DEFAULT 0`);
-        await db.query(`ALTER TABLE "sync_logs" ADD COLUMN "leads_deleted_count" INT DEFAULT 0`);
-        await db.query(`ALTER TABLE "sync_logs" ADD COLUMN "leads_inserted_count" INT DEFAULT 0`);
+        await db.query(`ALTER TABLE "sync_logs" ADD COLUMN IF NOT EXISTS "inserted_count" INT DEFAULT 0`);
+        await db.query(`ALTER TABLE "sync_logs" ADD COLUMN IF NOT EXISTS "temp_inserted_count" INT DEFAULT 0`);
+        await db.query(`ALTER TABLE "sync_logs" ADD COLUMN IF NOT EXISTS "leads_deleted_count" INT DEFAULT 0`);
+        await db.query(`ALTER TABLE "sync_logs" ADD COLUMN IF NOT EXISTS "leads_inserted_count" INT DEFAULT 0`);
     } catch (e) {
         // Ignore if exists
     }
 
     await db.query(
         `INSERT INTO "sync_logs" 
-        (sheet_name, table_name, temp_inserted_count, leads_deleted_count, leads_inserted_count, batch_id, status, trigger_type) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [sheetName, tableName, tempInserted, leadsDeleted, leadsInserted, batchId, status, triggerType]
+        (sheet_name, table_name, inserted_count, temp_inserted_count, leads_deleted_count, leads_inserted_count, batch_id, status, trigger_type) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [sheetName, tableName, leadsInserted, tempInserted, leadsDeleted, leadsInserted, batchId, status, triggerType]
     );
 };
 
@@ -274,6 +288,68 @@ const ensureDeletedLeadsTable = async () => {
     await db.query(query);
 };
 
+const ensureUsersTable = async () => {
+    const bcrypt = require('bcryptjs');
+    const query = `
+        CREATE TABLE IF NOT EXISTS "users" (
+            "id" SERIAL PRIMARY KEY,
+            "email" VARCHAR(255) UNIQUE NOT NULL,
+            "password_hash" TEXT NOT NULL,
+            "status" VARCHAR(20) DEFAULT 'ACTIVE',
+            "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
+    await db.query(query);
+
+    // Schema migration for existing table if any
+    try {
+        await db.query('ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "status" VARCHAR(20) DEFAULT \'ACTIVE\'');
+        await db.query('ALTER TABLE "users" RENAME COLUMN "password" TO "password_hash"');
+    } catch (e) {
+        // Ignore if already renamed or other errors
+    }
+
+    // Seed primary user if not exists
+    const primaryEmail = process.env.PRIMARY_ADMIN_EMAIL || 'mansikharb.kc@gmail.com';
+    const primaryPassword = 'Admin@123';
+    const { rows } = await db.query('SELECT * FROM "users" WHERE email = $1', [primaryEmail]);
+
+    if (rows.length === 0) {
+        const hashedPassword = await bcrypt.hash(primaryPassword, 10);
+        await db.query(
+            'INSERT INTO "users" (email, password_hash, status) VALUES ($1, $2, $3)',
+            [primaryEmail, hashedPassword, 'ACTIVE']
+        );
+        console.log(`👤 Primary user ${primaryEmail} created with status 'ACTIVE'`);
+    } else {
+        const hashedPassword = await bcrypt.hash(primaryPassword, 10);
+        await db.query(
+            'UPDATE "users" SET status = \'ACTIVE\', password_hash = $1 WHERE email = $2',
+            [hashedPassword, primaryEmail]
+        );
+        console.log(`👤 Primary user ${primaryEmail} updated to 'ACTIVE'`);
+    }
+};
+
+const ensureOtpsTable = async () => {
+    const query = `
+        CREATE TABLE IF NOT EXISTS "otps" (
+            "id" SERIAL PRIMARY KEY,
+            "email" VARCHAR(255) NOT NULL,
+            "otp" VARCHAR(6) NOT NULL,
+            "verified" BOOLEAN DEFAULT FALSE,
+            "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "expires_at" TIMESTAMP NOT NULL
+        );
+    `;
+    await db.query(query);
+
+    // Migration
+    try {
+        await db.query('ALTER TABLE "otps" ADD COLUMN IF NOT EXISTS "verified" BOOLEAN DEFAULT FALSE');
+    } catch (e) { }
+};
+
 module.exports = {
     ensureTableExists,
     insertNewRecords,
@@ -281,5 +357,7 @@ module.exports = {
     truncateTable,
     mergeTempToLeads,
     getStats,
-    ensureDeletedLeadsTable
+    ensureDeletedLeadsTable,
+    ensureUsersTable,
+    ensureOtpsTable
 };

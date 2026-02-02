@@ -1,27 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Database, Clock, Layout, FileText, ChevronRight, Trash2 } from 'lucide-react';
+import { RefreshCw, Database, Clock, Layout, FileText, ChevronRight, Trash2, HelpCircle } from 'lucide-react';
 import { syncSheet, getHistory, getData, deleteRecord } from './services/api';
 import { format } from 'date-fns';
 
 function App() {
-  const [spreadsheetId, setSpreadsheetId] = useState('');
+  const [userEmail, setUserEmail] = useState(localStorage.getItem('sf_user_email') || '');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // Main App States
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [viewData, setViewData] = useState([]);
   const [viewLoading, setViewLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [deleteInputId, setDeleteInputId] = useState('');
 
-  // Load history on mount
+  const primaryEmail = 'mansikharb.kc@gmail.com';
+
+  // Load history on mount (only if logged in)
   useEffect(() => {
-    fetchHistory();
-    // Poll every 30s
-    const interval = setInterval(fetchHistory, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    if (userEmail) {
+      fetchHistory();
+      const interval = setInterval(fetchHistory, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [userEmail]);
 
   const fetchHistory = async () => {
     try {
+      const { getHistory } = await import('./services/api');
       const data = await getHistory();
       setHistory(data);
     } catch (error) {
@@ -33,18 +43,14 @@ function App() {
     setLoading(true);
     setSyncResult(null);
     try {
+      const { syncSheet } = await import('./services/api');
       const result = await syncSheet(null);
-
       if (result.started) {
         alert("Sync started in the background! Please wait 1-2 minutes for the data to appear.");
-        // We don't set syncResult because the full details aren't ready yet
       } else {
         setSyncResult(result);
       }
-
-      // Delay history fetch slightly to give backend time to log the entry
       setTimeout(() => fetchHistory(), 3000);
-
     } catch (error) {
       console.error("Sync error details:", error);
       if (error.response && error.response.status === 409) {
@@ -52,8 +58,7 @@ function App() {
       } else {
         const errorData = error.response?.data;
         const errorMsg = errorData?.error || errorData?.message || error.message || "Unknown error";
-        const finalMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg, null, 2) : errorMsg;
-        alert("Sync Failed: " + finalMsg);
+        alert("Sync Failed: " + errorMsg);
       }
     } finally {
       setLoading(false);
@@ -64,6 +69,7 @@ function App() {
     setSelectedBatch(log);
     setViewLoading(true);
     try {
+      const { getData } = await import('./services/api');
       const data = await getData(log.table_name, log.batch_id);
       setViewData(data);
     } catch (error) {
@@ -84,70 +90,395 @@ function App() {
       alert("Error: Cannot identify record ID (sheet_id is missing)");
       return;
     }
-
-    if (!window.confirm(`Are you sure you want to permanently delete record ${id}? This prevention re-sync is permanent.`)) {
+    if (!window.confirm(`Are you sure you want to permanently delete record ${id}?`)) {
       return;
     }
-
     try {
+      const { deleteRecord } = await import('./services/api');
       const tableName = selectedBatch?.table_name || 'leads';
       await deleteRecord(tableName, id);
       setViewData(prev => prev.filter(item => item.sheet_id !== id));
     } catch (error) {
       console.error("Failed to delete record", error);
-      const errorData = error.response?.data;
-      const errorMsg = errorData?.error || errorData?.message || error.message || "Unknown error";
-      const finalMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg, null, 2) : errorMsg;
-      alert("Delete Failed: " + finalMsg);
+      alert("Delete Failed: " + (error.response?.data?.error || error.message));
     }
   };
-
-
-
-  // Manual Delete State
-  const [deleteInputId, setDeleteInputId] = useState('');
 
   const handleManualDelete = async () => {
     if (!deleteInputId.trim()) {
       alert("Please enter a valid Leads ID (Sheet ID).");
       return;
     }
-
     if (!window.confirm(`Are you sure you want to permanently delete record ${deleteInputId}?`)) {
       return;
     }
-
     setLoading(true);
     try {
-      // Call Backend Delete API
+      const { deleteRecord } = await import('./services/api');
       await deleteRecord('leads', deleteInputId);
       alert("Record deleted successfully.");
-      setDeleteInputId(''); // Clear input
-
-      // Refresh data if looking at leads
+      setDeleteInputId('');
       if (selectedBatch && selectedBatch.table_name === 'leads') {
         handleViewData(selectedBatch);
       } else {
-        // If not looking at data, at least refresh history to show latest state if applicable
         fetchHistory();
       }
-
     } catch (error) {
       console.error("Manual delete failed", error);
-      const errorData = error.response?.data;
-      const errorMsg = errorData?.error || errorData?.message || error.message || "Unknown error";
-      const finalMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg, null, 2) : errorMsg;
-      alert("Delete Failed: " + finalMsg);
+      alert("Delete Failed: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setLoginError('');
+    setLoginPendingMessage(null);
+    try {
+      const { loginUser } = await import('./services/api');
+      const result = await loginUser(loginEmail, loginPassword);
+
+      if (result.pending) {
+        setLoginPendingMessage(result.message);
+      } else if (result.success) {
+        localStorage.setItem('sf_user_email', loginEmail.toLowerCase());
+        setUserEmail(loginEmail.toLowerCase());
+        setLoginError('');
+      } else {
+        setLoginError("Invalid credentials. Please try again.");
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      const errorData = error.response?.data;
+      if (errorData && errorData.pending) {
+        setLoginPendingMessage(errorData.message);
+      } else {
+        const errorMsg = errorData?.error || "Login failed. Please check your credentials.";
+        setLoginError(errorMsg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [loginPendingMessage, setLoginPendingMessage] = useState(null);
+  const [showRegister, setShowRegister] = useState(false);
+  const [regStep, setRegStep] = useState(1); // 1: Form, 2: OTP
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regOtp, setRegOtp] = useState('');
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState('');
+  const [regSuccess, setRegSuccess] = useState('');
+
+  const handleRequestOtp = async (e) => {
+    e.preventDefault();
+    setRegLoading(true);
+    setRegError('');
+
+    if (regPassword !== regConfirmPassword) {
+      setRegError("Passwords do not match.");
+      setRegLoading(false);
+      return;
+    }
+
+    try {
+      const { requestOTP } = await import('./services/api');
+      const res = await requestOTP(regEmail, regPassword, regConfirmPassword);
+      setRegStep(2);
+      // Backend message says OTP sent to admin
+    } catch (error) {
+      setRegError(error.response?.data?.error || "Request failed. Please try again.");
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const handleVerifyAndRegister = async (e) => {
+    e.preventDefault();
+    setRegLoading(true);
+    setRegError('');
+
+    try {
+      const { verifyOTP, registerUser } = await import('./services/api');
+
+      // Step 2: Verify
+      await verifyOTP(regEmail, regOtp);
+
+      // Step 3: Register
+      const res = await registerUser(regEmail, regPassword);
+      setRegSuccess(res.message);
+      setRegStep(1); // Reset for next time
+    } catch (error) {
+      setRegError(error.response?.data?.error || "Registration failed. Please check OTP.");
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('sf_user_email');
+    setUserEmail('');
+    setLoginEmail('');
+    setLoginPassword('');
+    setLoginPendingMessage(null);
+  };
+
+  if (!userEmail) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl space-y-8 animate-in fade-in zoom-in duration-500">
+            <div className="text-center space-y-2">
+              <div className="inline-flex p-4 rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-500/50 mb-4">
+                <Database className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-white tracking-tight">SyncFlow</h1>
+              <p className="text-slate-400">Company Database Automation</p>
+            </div>
+
+            {showRegister ? (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-white">Create Account</h2>
+                  <p className="text-slate-400 text-sm">Request access to SyncFlow</p>
+                </div>
+
+                {regSuccess ? (
+                  <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-emerald-500 font-bold">Success!</p>
+                      <p className="text-slate-300 text-sm">{regSuccess}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowRegister(false);
+                        setRegSuccess('');
+                        setRegEmail('');
+                        setRegPassword('');
+                        setRegConfirmPassword('');
+                        setRegOtp('');
+                      }}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all"
+                    >
+                      Sign In Now
+                    </button>
+                  </div>
+                ) : regStep === 1 ? (
+                  <form onSubmit={handleRequestOtp} className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-300 ml-1">Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-300 ml-1">Password</label>
+                      <input
+                        type="password"
+                        required
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Set a password"
+                        className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-300 ml-1">Confirm Password</label>
+                      <input
+                        type="password"
+                        required
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Confirm your password"
+                        className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {regError && (
+                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
+                        {regError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={regLoading}
+                      className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-xl shadow-indigo-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
+                    >
+                      {regLoading ? (
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <FileText className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                          Proceed to OTP
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setShowRegister(false); }}
+                      className="w-full text-sm text-slate-500 hover:text-white transition-colors pt-2"
+                    >
+                      Wait, I have an account. Sign In
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyAndRegister} className="space-y-4">
+                    <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-2 animate-in fade-in duration-500">
+                      <p className="text-indigo-400 font-bold text-sm flex items-center gap-2">
+                        <Database className="w-4 h-4" /> OTP Sent to Admin
+                      </p>
+                      <p className="text-slate-300 text-xs leading-relaxed">
+                        An OTP has been sent to the primary administrator.<br />
+                        Please contact <span className="text-indigo-400 font-medium">mansikharb.kc@gmail.com</span> to get the 6-digit code.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-indigo-400 ml-1 font-bold">Verification OTP</label>
+                      <input
+                        type="text"
+                        required
+                        value={regOtp}
+                        onChange={(e) => setRegOtp(e.target.value)}
+                        placeholder="Enter 6-digit code"
+                        maxLength={6}
+                        className="w-full px-5 py-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl text-white text-center text-3xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      />
+                    </div>
+
+                    {regError && (
+                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
+                        {regError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={regLoading}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-xl shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      {regLoading ? 'Verifying...' : 'Complete Registration'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setRegStep(1)}
+                      className="w-full text-sm text-slate-500 hover:text-indigo-400 transition-colors pt-2"
+                    >
+                      ← Back to Details
+                    </button>
+                  </form>
+                )}
+              </div>
+            ) : loginPendingMessage ? (
+              <div className="space-y-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-4">
+                  <h2 className="text-xl font-bold text-amber-500">Access Restricted</h2>
+                  <p className="text-slate-300 text-sm leading-relaxed">
+                    Only approved users can sign in.<br />
+                    If you do not have access, please request approval from the administrator.
+                  </p>
+                  <div className="pt-2">
+                    <p className="text-xs text-slate-500 mb-3 uppercase tracking-wider font-semibold">👉 Administrator:</p>
+                    <a
+                      href={`mailto:${primaryEmail}?subject=Access Request&body=Please approve my access for email: ${loginEmail}`}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 rounded-xl font-bold transition-all hover:scale-[1.05] active:scale-[0.95]"
+                    >
+                      Contact Administrator
+                    </a>
+                  </div>
+                  <p className="text-[10px] text-slate-500 italic mt-4">
+                    Once approved by {primaryEmail}, you will be able to log in.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setLoginPendingMessage(null)}
+                  className="text-sm text-slate-400 hover:text-white transition-colors underline underline-offset-4"
+                >
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-300 ml-1">Work Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-300 ml-1">Password</label>
+                    <input
+                      type="password"
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                {loginError && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm animate-shake text-center">
+                    {loginError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-semibold shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70"
+                >
+                  {loading ? 'Verifying...' : 'Sign In'}
+                </button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowRegister(true)}
+                    className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium border-b border-indigo-400/30 hover:border-indigo-400 pb-0.5"
+                  >
+                    Don't have access? Create Account
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="text-center">
+              <p className="text-xs text-slate-500">
+                Authorized Personnel Only • Reach out to {primaryEmail}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-100">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-2 rounded-lg">
@@ -157,8 +488,17 @@ function App() {
               SyncFlow
             </h1>
           </div>
-          <div className="text-sm text-slate-500 font-medium">
-            Company DB Automation
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-xs font-semibold text-slate-900">{userEmail}</span>
+              <span className="text-[10px] text-slate-400">Primary Admin</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
@@ -237,7 +577,7 @@ function App() {
                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Columns:</p>
                     <div className="flex flex-wrap gap-1">
                       {res.columns && res.columns.slice(0, 10).map((col, cIdx) => (
-                        <span key={cIdx} className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2 py-1 rounded shadow-sm">
+                        <span key={col} className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2 py-1 rounded shadow-sm">
                           {col}
                         </span>
                       ))}
@@ -418,6 +758,70 @@ function App() {
           <p className="text-xs text-slate-400 mt-2">
             * This will permanently delete the record and prevent it from re-syncing.
           </p>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mt-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-2 bg-indigo-50 rounded-lg">
+              <HelpCircle className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Frequently Asked Questions</h2>
+              <p className="text-sm text-slate-500">Quick answers to common questions about SyncFlow</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 transition-all hover:border-indigo-200 hover:bg-white hover:shadow-sm group">
+                <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-2">
+                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                  How often does the data synchronize?
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  SyncFlow is configured to run an automated background sync every <span className="text-indigo-600 font-medium">1 hour</span>. You can also trigger an immediate sync manually using the "Sync Now" button at the top of the dashboard.
+                </p>
+              </div>
+
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 transition-all hover:border-indigo-200 hover:bg-white hover:shadow-sm group">
+                <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-2">
+                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                  How do new users get access?
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  New users must create an account which sends an OTP request to the administrator. Once the administrator shares the code and the user verifies it, the account is created and granted full access to the dashboard.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 transition-all hover:border-indigo-200 hover:bg-white hover:shadow-sm group">
+                <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-2">
+                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                  What does "Sync Result" represent?
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  The sync result shows the outcome of the latest operation. "Success" confirms data was moved correctly, while "New Records" indicates how many unique entries were added from your Google Sheet since the last run.
+                </p>
+              </div>
+
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 transition-all hover:border-indigo-200 hover:bg-white hover:shadow-sm group">
+                <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-2">
+                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                  Can I recover a manually deleted record?
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Manual deletion is a <span className="text-red-500 font-medium">permanent action</span>. To prevent sync conflicts, the system remembers deleted IDs and will not re-import them unless you contact the administrator to reset the sync history.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+            <p>© 2026 SyncFlow Automation System</p>
+            <p>Admin Support: <a href="mailto:mansikharb.kc@gmail.com" className="text-indigo-500 hover:underline">mansikharb.kc@gmail.com</a></p>
+          </div>
         </section>
 
       </main>

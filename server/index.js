@@ -51,7 +51,11 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Backend Server is LIVE on port ${PORT}`);
 
     // Connect to DB in background so port binding isn't delayed
-    initDB().then(() => {
+    initDB().then(async () => {
+        const { ensureUsersTable, ensureOtpsTable } = require('./services/dbService');
+        await ensureUsersTable().catch(err => console.error('❌ User table init error:', err));
+        await ensureOtpsTable().catch(err => console.error('❌ OTP table init error:', err));
+
         console.log('📅 Starting Backup Internal Cron Scheduler...');
         // Every 10 minutes (Fallback if server is already awake)
         cron.schedule('*/10 * * * *', async () => {
