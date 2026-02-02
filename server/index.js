@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { initDB } = require('./db');
 const cron = require('node-cron');
+const path = require('path');
 const { syncSheetToDb } = require('./services/syncService');
 
 const app = express();
@@ -40,9 +41,30 @@ app.get('/cron-sync', async (req, res) => {
 // 4. API Routes
 app.use('/api', apiRoutes);
 
-// 5. Safe 404 Handler
-app.use((req, res) => {
-    res.status(404).json({ error: "Route not found" });
+// 5. Config Info (Helper for Frontend)
+app.get('/api/config', (req, res) => {
+    res.json({
+        primaryAdminEmail: process.env.PRIMARY_ADMIN_EMAIL || 'mansikharb.kc@gmail.com'
+    });
+});
+
+// 6. Serve Static Files (All-in-One Deployment)
+const clientPath = path.join(__dirname, '../client/dist');
+app.use(express.static(clientPath));
+
+// Handle React routing, return all requests to React app
+app.get(/^(?!\/api).+/, (req, res) => {
+    res.sendFile(path.join(clientPath, 'index.html'), (err) => {
+        if (err) {
+            // If static files aren't built yet, just show simple status
+            res.status(200).send('Backend is running 🚀 (Frontend build missing or path error)');
+        }
+    });
+});
+
+// 7. Safe 404 Handler for API
+app.use('/api', (req, res) => {
+    res.status(404).json({ error: "API Route not found" });
 });
 
 // 🚀 CRITICAL: Bind to port IMMEDIATELY for Render

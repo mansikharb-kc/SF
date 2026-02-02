@@ -310,7 +310,7 @@ const ensureUsersTable = async () => {
     }
 
     // Seed primary user if not exists
-    const primaryEmail = process.env.PRIMARY_ADMIN_EMAIL || 'mansikharb.kc@gmail.com';
+    const primaryEmail = (process.env.PRIMARY_ADMIN_EMAIL || 'mansikharb.kc@gmail.com').toLowerCase().trim();
     const primaryPassword = 'Admin@123';
     const { rows } = await db.query('SELECT * FROM "users" WHERE email = $1', [primaryEmail]);
 
@@ -320,14 +320,14 @@ const ensureUsersTable = async () => {
             'INSERT INTO "users" (email, password_hash, status) VALUES ($1, $2, $3)',
             [primaryEmail, hashedPassword, 'ACTIVE']
         );
-        console.log(`👤 Primary user ${primaryEmail} created with status 'ACTIVE'`);
+        console.log(`👤 Primary user ${primaryEmail} (Seed) created with status 'ACTIVE'`);
     } else {
         const hashedPassword = await bcrypt.hash(primaryPassword, 10);
         await db.query(
             'UPDATE "users" SET status = \'ACTIVE\', password_hash = $1 WHERE email = $2',
             [hashedPassword, primaryEmail]
         );
-        console.log(`👤 Primary user ${primaryEmail} updated to 'ACTIVE'`);
+        console.log(`👤 Primary user ${primaryEmail} (Seed) updated to 'ACTIVE'`);
     }
 };
 

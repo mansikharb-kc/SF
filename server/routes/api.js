@@ -250,6 +250,8 @@ router.post('/login', async (req, res) => {
     let { email, password } = req.body;
     const bcrypt = require('bcryptjs');
 
+    console.log(`[Login Attempt] Email: ${email}`);
+
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -260,20 +262,25 @@ router.post('/login', async (req, res) => {
         const { rows } = await db.query('SELECT * FROM "users" WHERE email = $1', [email]);
 
         if (rows.length === 0) {
+            console.log(`[Login Info] User not found: ${email}`);
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
         const user = rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
+        console.log(`[Login Info] Match result: ${isMatch}`);
+
         if (!isMatch) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
         if (user.status !== 'ACTIVE') {
+            console.log(`[Login Info] Account not active: ${email}`);
             return res.status(403).json({ error: 'Your account is not active' });
         }
 
+        console.log(`[Login Success] User: ${email}`);
         const { password_hash: _, ...userInfo } = user;
         res.json({ success: true, user: userInfo });
 

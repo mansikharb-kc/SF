@@ -64,3 +64,8 @@ export const registerUser = async (email, password) => {
     const response = await API.post('/api/register', { email, password });
     return response.data;
 };
+
+export const getConfig = async () => {
+    const response = await API.get('/api/config');
+    return response.data;
+};

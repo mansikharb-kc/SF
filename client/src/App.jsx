@@ -17,11 +17,24 @@ function App() {
   const [viewLoading, setViewLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [deleteInputId, setDeleteInputId] = useState('');
-
-  const primaryEmail = 'mansikharb.kc@gmail.com';
+  const [primaryEmail, setPrimaryEmail] = useState('mansikharb.kc@gmail.com');
 
   // Load history on mount (only if logged in)
   useEffect(() => {
+    // Also fetch config
+    const fetchConfig = async () => {
+      try {
+        const { getConfig } = await import('./services/api');
+        const config = await getConfig();
+        if (config.primaryAdminEmail) {
+          setPrimaryEmail(config.primaryAdminEmail);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch backend config", e);
+      }
+    };
+    fetchConfig();
+
     if (userEmail) {
       fetchHistory();
       const interval = setInterval(fetchHistory, 30000);
@@ -152,11 +165,17 @@ function App() {
     } catch (error) {
       console.error("Login Error:", error);
       const errorData = error.response?.data;
-      if (errorData && errorData.pending) {
-        setLoginPendingMessage(errorData.message);
+      const status = error.response?.status;
+
+      if (status === 401) {
+        setLoginError("Invalid email or password. Remember: Password is case-sensitive (e.g., Admin@123).");
+      } else if (status === 403) {
+        setLoginError(errorData?.error || "Account not active.");
+      } else if (error.message === "Network Error") {
+        setLoginError("Network Error: Cannot connect to the backend server. Is it running on port 5000?");
       } else {
-        const errorMsg = errorData?.error || "Login failed. Please check your credentials.";
-        setLoginError(errorMsg);
+        const errorMsg = errorData?.error || error.message || "Login failed. Please try again.";
+        setLoginError(`Error (${status || 'Unknown'}): ${errorMsg}`);
       }
     } finally {
       setLoading(false);
