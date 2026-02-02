@@ -22,7 +22,8 @@
     "express": "^5.2.1",
     "googleapis": "^170.1.0",
     "mysql2": "^3.16.1",
-    "prisma": "^7.3.0"
+    "prisma": "^7.3.0",
+    "resend": "^4.1.2"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.23",
