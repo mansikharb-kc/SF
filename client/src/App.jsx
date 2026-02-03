@@ -561,6 +561,185 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
+
+        {/* Leads Search & Database Panel */}
+        <section className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden flex flex-col transition-all hover:shadow-2xl">
+          <div className="p-6 md:p-8 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50/50 space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                  <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
+                    <Database className="w-6 h-6 text-white" />
+                  </div>
+                  Leads Database
+                </h2>
+                <p className="text-slate-500 mt-1 text-sm">Search and manage all synchronized records</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col items-end">
+                  <span className="text-2xl font-black text-indigo-600 tracking-tight">{totalLeads.toLocaleString()}</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Total Records</span>
+                </div>
+                <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
+                <button
+                  onClick={fetchLeads}
+                  disabled={leadsLoading}
+                  className="p-3 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
+                  title="Refresh Leads"
+                >
+                  <RefreshCw className={`w-5 h-5 ${leadsLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                <Layout className="w-6 h-6 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by city, name, email, or ID..."
+                value={leadsSearch}
+                onChange={(e) => {
+                  setLeadsSearch(e.target.value);
+                  setLeadsPage(0);
+                  if (activeView !== 'all-leads') setActiveView('all-leads');
+                }}
+                className="w-full pl-14 pr-16 py-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/5 transition-all text-xl shadow-inner placeholder:text-slate-300"
+              />
+              {leadsLoading && (
+                <div className="absolute inset-y-0 right-5 flex items-center">
+                  <div className="w-6 h-6 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50/30">
+            {allLeads.length === 0 ? (
+              <div className="py-24 text-center space-y-4 animate-in fade-in zoom-in duration-500">
+                <div className="bg-white w-20 h-20 rounded-3xl shadow-lg flex items-center justify-center mx-auto border border-slate-100">
+                  <Database className="w-10 h-10 text-slate-200" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-slate-800 font-bold text-lg">
+                    {leadsLoading ? 'Accessing Secure Database...' : 'No Results Found'}
+                  </p>
+                  <p className="text-slate-400 text-sm max-w-xs mx-auto">
+                    {leadsLoading ? 'Please wait while we retrieve the latest leads...' : `We couldn't find any records matching "${leadsSearch}"`}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {allLeads.map((lead) => {
+                  // Helper to find common fields dynamically
+                  const findF = (prefixes) => {
+                    const key = Object.keys(lead).find(k =>
+                      prefixes.some(p => k.toLowerCase().includes(p.toLowerCase()))
+                    );
+                    return key ? lead[key] : null;
+                  };
+
+                  const name = findF(['full_name', 'name', 'client', 'contact', 'customer']);
+                  const email = findF(['email', 'mail']);
+                  const city = findF(['city', 'location', 'address', 'town', 'distt', 'dist']);
+                  const phone = findF(['phone', 'mobile', 'whatsapp', 'contact_number']);
+                  const company = findF(['company', 'firm', 'brand', 'organization', 'factory']);
+
+                  return (
+                    <div key={lead.sheet_id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-xl hover:border-indigo-400/50 hover:-translate-y-1 transition-all group relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full -mr-12 -mt-12 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                      <div className="flex justify-between items-start mb-4 relative">
+                        <div className="flex-1 truncate">
+                          <div className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mb-1">
+                            {city || 'General Lead'}
+                          </div>
+                          <h3 className="font-bold text-slate-900 truncate pr-2 group-hover:text-indigo-600 transition-colors">
+                            {name || 'Unnamed Record'}
+                          </h3>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                          #{lead.sheet_id.slice(0, 8)}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3 text-sm text-slate-600 relative">
+                        {company && (
+                          <div className="flex items-center gap-2.5 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                            <span className="text-lg">🏢</span>
+                            <span className="font-semibold text-slate-700 truncate">{company}</span>
+                          </div>
+                        )}
+                        <div className="space-y-1.5 px-1">
+                          {email && <div className="truncate flex items-center gap-3">
+                            <div className="w-5 flex justify-center text-slate-300">📧</div>
+                            <span className="truncate">{email}</span>
+                          </div>}
+                          {phone && <div className="flex items-center gap-3">
+                            <div className="w-5 flex justify-center text-slate-300">📞</div>
+                            <span>{phone}</span>
+                          </div>}
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 pt-4 border-t border-slate-100 flex justify-between items-center transition-all ${leadsSearch ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                        <button
+                          onClick={() => {
+                            const log = history.find(h => h.batch_id === lead._batch_id);
+                            if (log) {
+                              handleViewData(log);
+                              document.getElementById('sync-history-section')?.scrollIntoView({ behavior: 'smooth' });
+                            } else {
+                              alert(`Sync batch ${lead._batch_id.slice(0, 8)}... not found in recent history.`);
+                            }
+                          }}
+                          className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 transition-colors group/time"
+                          title="View Sync History for this lead"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-bold">
+                            {format(new Date(lead._created_at), 'MMM d, h:mm a')}
+                          </span>
+                        </button>
+                        <div className="text-[9px] text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-100 uppercase tracking-tighter">
+                          Entry Recorded
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="px-8 py-5 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-sm text-slate-500 font-medium">
+              Showing <span className="font-bold text-slate-900">{leadsPage * leadsLimit + 1}</span> - <span className="font-bold text-slate-900">{Math.min((leadsPage + 1) * leadsLimit, totalLeads)}</span> <span className="text-slate-300 px-2 text-xs">|</span> Records <span className="font-bold text-indigo-600">{totalLeads.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Page {leadsPage + 1}</span>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setLeadsPage(p => p - 1)}
+                  disabled={leadsPage === 0}
+                  className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-indigo-500 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-90"
+                >
+                  <ChevronRight className="w-5 h-5 rotate-180" />
+                </button>
+                <button
+                  onClick={() => setLeadsPage(p => p + 1)}
+                  disabled={(leadsPage + 1) * leadsLimit >= totalLeads}
+                  className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-indigo-500 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-90"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Auto Sync Status */}
         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 transition-all hover:shadow-md">
           <div className="flex flex-col sm:flex-row gap-8 items-center justify-between">
@@ -570,7 +749,7 @@ function App() {
                 Auto-Sync Active
               </h2>
               <p className="text-slate-600 mb-4">
-                The system automatically syncs data from the Google Sheet every hour.
+                The system automatically syncs data from the Google Sheet every 30 minutes.
                 <br />
                 <span className="text-xs text-slate-400">Spreadsheet ID: 1ZOm...ksEZiY (Fixed)</span>
               </p>
@@ -649,34 +828,20 @@ function App() {
           </section>
         )}
 
-        {/* Recent Activity & Data View */}
-        <div className="flex items-center gap-4 mb-4 border-b border-slate-200">
-          <button
-            onClick={() => setActiveView('history')}
-            className={`pb-2 px-4 text-sm font-bold transition-all ${activeView === 'history'
-                ? 'border-b-2 border-indigo-600 text-indigo-600'
-                : 'text-slate-400 hover:text-slate-600'
-              }`}
-          >
-            Sync History
-          </button>
-          <button
-            onClick={() => setActiveView('all-leads')}
-            className={`pb-2 px-4 text-sm font-bold transition-all ${activeView === 'all-leads'
-                ? 'border-b-2 border-indigo-600 text-indigo-600'
-                : 'text-slate-400 hover:text-slate-600'
-              }`}
-          >
-            All Leads ({totalLeads})
-          </button>
+        {/* Recent Activity & Batch Details */}
+        <div className="flex items-center gap-2 mb-4 border-b border-slate-200">
+          <h3 className="pb-2 px-4 text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 flex items-center gap-2">
+            <Clock className="w-4 h-4" /> Sync History & Batch Details
+          </h3>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
 
 
-          {/* History List */}
-          <section className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] ${activeView === 'all-leads' ? 'hidden' : (selectedBatch ? 'hidden lg:flex' : '')
-            }`}>
+          <section
+            id="sync-history-section"
+            className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] ${selectedBatch ? 'hidden lg:flex' : ''
+              }`}>
             <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <h3 className="font-semibold text-slate-700 flex items-center gap-2">
                 <Clock className="w-4 h-4" /> Sync History
@@ -724,71 +889,7 @@ function App() {
             </div>
           </section>
 
-          {/* All Leads List (New Section) */}
-          <section className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] ${activeView === 'history' ? 'hidden' : ''
-            }`}>
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-                  <Database className="w-4 h-4" /> All Leads
-                </h3>
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{totalLeads} records</span>
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search leads..."
-                  value={leadsSearch}
-                  onChange={(e) => { setLeadsSearch(e.target.value); setLeadsPage(0); }}
-                  className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                {leadsLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin absolute right-3 top-3 text-slate-300" />}
-              </div>
-            </div>
-            <div className="overflow-y-auto flex-1 p-2 space-y-2">
-              {allLeads.length === 0 ? (
-                <div className="text-center py-10 text-slate-400">{leadsLoading ? 'Loading...' : 'No leads found.'}</div>
-              ) : (
-                allLeads.map((lead) => (
-                  <div
-                    key={lead.sheet_id}
-                    className="p-3 bg-white border border-transparent hover:border-slate-200 hover:bg-slate-50 rounded-xl transition-all cursor-default"
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-slate-800 truncate">
-                        {lead.full_name || lead.sheet_id}
-                      </span>
-                      <span className="text-[10px] text-slate-400 px-1.5 py-0.5 bg-slate-100 rounded">
-                        {lead.sheet_id.slice(0, 8)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500 mt-1 space-y-0.5">
-                      {lead.email && <div className="truncate">📧 {lead.email}</div>}
-                      {lead.phone && <div>📞 {lead.phone}</div>}
-                      {lead.phone_number && <div>📞 {lead.phone_number}</div>}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
-              <button
-                disabled={leadsPage === 0}
-                onClick={() => setLeadsPage(p => p - 1)}
-                className="px-3 py-1 text-xs font-medium bg-white border border-slate-200 rounded-md disabled:opacity-50 hover:bg-slate-50"
-              >
-                Prev
-              </button>
-              <span className="text-[10px] text-slate-500">Page {leadsPage + 1} of {Math.max(1, Math.ceil(totalLeads / leadsLimit))}</span>
-              <button
-                disabled={(leadsPage + 1) * leadsLimit >= totalLeads}
-                onClick={() => setLeadsPage(p => p + 1)}
-                className="px-3 py-1 text-xs font-medium bg-white border border-slate-200 rounded-md disabled:opacity-50 hover:bg-slate-50"
-              >
-                Next
-              </button>
-            </div>
-          </section>
+
 
 
           {/* Data View Panel */}

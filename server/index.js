@@ -79,8 +79,8 @@ app.listen(PORT, '0.0.0.0', () => {
         await ensureOtpsTable().catch(err => console.error('❌ OTP table init error:', err));
 
         console.log('📅 Starting Backup Internal Cron Scheduler...');
-        // Every 10 minutes (Fallback if server is already awake)
-        cron.schedule('*/10 * * * *', async () => {
+        // Every 30 minutes (Fallback if server is already awake)
+        cron.schedule('*/30 * * * *', async () => {
             try {
                 await syncSheetToDb('AUTO');
                 console.log('✅ Internal sync success');

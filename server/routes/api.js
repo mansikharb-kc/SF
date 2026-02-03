@@ -50,7 +50,7 @@ router.get('/stats', async (req, res) => {
 // Get Sync History
 router.get('/history', async (req, res) => {
     try {
-        const { rows } = await db.query('SELECT * FROM "sync_logs" ORDER BY sync_timestamp DESC LIMIT 100');
+        const { rows } = await db.query('SELECT * FROM "sync_logs" ORDER BY sync_timestamp DESC');
         res.json(rows);
     } catch (error) {
         // If table doesn't exist yet, return empty
@@ -65,28 +65,35 @@ router.get('/history', async (req, res) => {
 router.get('/leads', async (req, res) => {
     const { search, limit = 50, offset = 0 } = req.query;
     try {
+        // 1. Get all columns for the leads table to build a dynamic search
+        const { rows: colRows } = await db.query(`
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'leads'
+        `);
+
+        const reserved = ['_row_hash', '_batch_id', '_created_at'];
+        const searchableCols = colRows
+            .filter(c => !reserved.includes(c.column_name))
+            .map(c => `"${c.column_name}"`);
+
         let query = 'SELECT * FROM "leads"';
+        let countQuery = 'SELECT COUNT(*) FROM "leads"';
         const params = [];
 
-        if (search) {
-            query += ' WHERE "sheet_id" ILIKE $1 OR "full_name" ILIKE $1 OR "email" ILIKE $1 OR "phone" ILIKE $1 OR "phone_number" ILIKE $1';
+        if (search && searchableCols.length > 0) {
+            const searchClause = searchableCols.map(col => `${col} ILIKE $1`).join(' OR ');
+            query += ` WHERE ${searchClause}`;
+            countQuery += ` WHERE ${searchClause}`;
             params.push(`%${search}%`);
         }
 
-        query += ' ORDER BY _created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
-        params.push(parseInt(limit));
-        params.push(parseInt(offset));
+        // Final query for data
+        const dataQuery = query + ' ORDER BY _created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+        const dataParams = [...params, parseInt(limit), parseInt(offset)];
 
-        const { rows } = await db.query(query, params);
-
-        // Also get total count
-        let countQuery = 'SELECT COUNT(*) FROM "leads"';
-        const countParams = [];
-        if (search) {
-            countQuery += ' WHERE "sheet_id" ILIKE $1 OR "full_name" ILIKE $1 OR "email" ILIKE $1 OR "phone" ILIKE $1 OR "phone_number" ILIKE $1';
-            countParams.push(`%${search}%`);
-        }
-        const { rows: countRows } = await db.query(countQuery, countParams);
+        const { rows } = await db.query(dataQuery, dataParams);
+        const { rows: countRows } = await db.query(countQuery, params);
 
         res.json({
             leads: rows,
