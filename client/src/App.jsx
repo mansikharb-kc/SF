@@ -19,6 +19,16 @@ function App() {
   const [deleteInputId, setDeleteInputId] = useState('');
   const [primaryEmail, setPrimaryEmail] = useState('mansikharb.kc@gmail.com');
 
+  // Global Leads States
+  const [allLeads, setAllLeads] = useState([]);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [leadsSearch, setLeadsSearch] = useState('');
+  const [leadsPage, setLeadsPage] = useState(0);
+  const [leadsLimit] = useState(50);
+  const [activeView, setActiveView] = useState('history'); // 'history' or 'all-leads'
+
+
   // Load history on mount (only if logged in)
   useEffect(() => {
     // Also fetch config
@@ -37,10 +47,22 @@ function App() {
 
     if (userEmail) {
       fetchHistory();
-      const interval = setInterval(fetchHistory, 30000);
+      fetchLeads();
+      const interval = setInterval(() => {
+        fetchHistory();
+        if (activeView === 'all-leads') fetchLeads();
+      }, 30000);
       return () => clearInterval(interval);
     }
-  }, [userEmail]);
+  }, [userEmail, activeView]);
+
+  // Refetch leads when search or page changes
+  useEffect(() => {
+    if (userEmail && activeView === 'all-leads') {
+      fetchLeads();
+    }
+  }, [leadsSearch, leadsPage]);
+
 
   const fetchHistory = async () => {
     try {
@@ -51,6 +73,21 @@ function App() {
       console.error("Failed to load history", error);
     }
   };
+
+  const fetchLeads = async () => {
+    setLeadsLoading(true);
+    try {
+      const { getLeads } = await import('./services/api');
+      const data = await getLeads(leadsSearch, leadsLimit, leadsPage * leadsLimit);
+      setAllLeads(data.leads);
+      setTotalLeads(data.total);
+    } catch (error) {
+      console.error("Failed to load leads", error);
+    } finally {
+      setLeadsLoading(false);
+    }
+  };
+
 
   const handleSync = async () => {
     setLoading(true);
@@ -589,8 +626,9 @@ function App() {
                   <h3 className="font-medium text-slate-800 mb-2 flex justify-between">
                     {res.sheet}
                     <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                      +{res.inserted} new
+                      {res.found || 0} found / {res.inserted} new
                     </span>
+
                   </h3>
                   <div className="space-y-1">
                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Columns:</p>
@@ -612,10 +650,33 @@ function App() {
         )}
 
         {/* Recent Activity & Data View */}
+        <div className="flex items-center gap-4 mb-4 border-b border-slate-200">
+          <button
+            onClick={() => setActiveView('history')}
+            className={`pb-2 px-4 text-sm font-bold transition-all ${activeView === 'history'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-slate-400 hover:text-slate-600'
+              }`}
+          >
+            Sync History
+          </button>
+          <button
+            onClick={() => setActiveView('all-leads')}
+            className={`pb-2 px-4 text-sm font-bold transition-all ${activeView === 'all-leads'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-slate-400 hover:text-slate-600'
+              }`}
+          >
+            All Leads ({totalLeads})
+          </button>
+        </div>
+
         <div className="grid lg:grid-cols-3 gap-8">
 
+
           {/* History List */}
-          <section className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px] ${selectedBatch ? 'hidden lg:flex' : ''}`}>
+          <section className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] ${activeView === 'all-leads' ? 'hidden' : (selectedBatch ? 'hidden lg:flex' : '')
+            }`}>
             <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <h3 className="font-semibold text-slate-700 flex items-center gap-2">
                 <Clock className="w-4 h-4" /> Sync History
@@ -663,10 +724,78 @@ function App() {
             </div>
           </section>
 
+          {/* All Leads List (New Section) */}
+          <section className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] ${activeView === 'history' ? 'hidden' : ''
+            }`}>
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                  <Database className="w-4 h-4" /> All Leads
+                </h3>
+                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{totalLeads} records</span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search leads..."
+                  value={leadsSearch}
+                  onChange={(e) => { setLeadsSearch(e.target.value); setLeadsPage(0); }}
+                  className="w-full pl-3 pr-8 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                {leadsLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin absolute right-3 top-3 text-slate-300" />}
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 p-2 space-y-2">
+              {allLeads.length === 0 ? (
+                <div className="text-center py-10 text-slate-400">{leadsLoading ? 'Loading...' : 'No leads found.'}</div>
+              ) : (
+                allLeads.map((lead) => (
+                  <div
+                    key={lead.sheet_id}
+                    className="p-3 bg-white border border-transparent hover:border-slate-200 hover:bg-slate-50 rounded-xl transition-all cursor-default"
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-slate-800 truncate">
+                        {lead.full_name || lead.sheet_id}
+                      </span>
+                      <span className="text-[10px] text-slate-400 px-1.5 py-0.5 bg-slate-100 rounded">
+                        {lead.sheet_id.slice(0, 8)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                      {lead.email && <div className="truncate">📧 {lead.email}</div>}
+                      {lead.phone && <div>📞 {lead.phone}</div>}
+                      {lead.phone_number && <div>📞 {lead.phone_number}</div>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <button
+                disabled={leadsPage === 0}
+                onClick={() => setLeadsPage(p => p - 1)}
+                className="px-3 py-1 text-xs font-medium bg-white border border-slate-200 rounded-md disabled:opacity-50 hover:bg-slate-50"
+              >
+                Prev
+              </button>
+              <span className="text-[10px] text-slate-500">Page {leadsPage + 1} of {Math.max(1, Math.ceil(totalLeads / leadsLimit))}</span>
+              <button
+                disabled={(leadsPage + 1) * leadsLimit >= totalLeads}
+                onClick={() => setLeadsPage(p => p + 1)}
+                className="px-3 py-1 text-xs font-medium bg-white border border-slate-200 rounded-md disabled:opacity-50 hover:bg-slate-50"
+              >
+                Next
+              </button>
+            </div>
+          </section>
+
+
           {/* Data View Panel */}
-          <section className={`lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px] transition-all relative
+          <section className={`lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] transition-all relative
               ${!selectedBatch ? 'hidden lg:flex items-center justify-center bg-slate-50' : ''}
             `}>
+
 
             {!selectedBatch ? (
               <div className="text-center text-slate-400">

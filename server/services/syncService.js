@@ -99,6 +99,7 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
                 results.push({
                     sheet: sheetTitle,
                     table: targetTableName,
+                    found: insertedTempCount,
                     inserted: mergeResult.insertedCount,
                     status: 'SUCCESS',
                     columns: headers

@@ -61,6 +61,47 @@ router.get('/history', async (req, res) => {
     }
 });
 
+// Get All Leads (Global List)
+router.get('/leads', async (req, res) => {
+    const { search, limit = 50, offset = 0 } = req.query;
+    try {
+        let query = 'SELECT * FROM "leads"';
+        const params = [];
+
+        if (search) {
+            query += ' WHERE "sheet_id" ILIKE $1 OR "full_name" ILIKE $1 OR "email" ILIKE $1 OR "phone" ILIKE $1 OR "phone_number" ILIKE $1';
+            params.push(`%${search}%`);
+        }
+
+        query += ' ORDER BY _created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+        params.push(parseInt(limit));
+        params.push(parseInt(offset));
+
+        const { rows } = await db.query(query, params);
+
+        // Also get total count
+        let countQuery = 'SELECT COUNT(*) FROM "leads"';
+        const countParams = [];
+        if (search) {
+            countQuery += ' WHERE "sheet_id" ILIKE $1 OR "full_name" ILIKE $1 OR "email" ILIKE $1 OR "phone" ILIKE $1 OR "phone_number" ILIKE $1';
+            countParams.push(`%${search}%`);
+        }
+        const { rows: countRows } = await db.query(countQuery, countParams);
+
+        res.json({
+            leads: rows,
+            total: parseInt(countRows[0].count),
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+    } catch (error) {
+        if (error.code === '42P01') { // undefined_table
+            return res.json({ leads: [], total: 0 });
+        }
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get Table Data (optional filter by batchId)
 router.get('/data/:tableName', async (req, res) => {
     const { tableName } = req.params;

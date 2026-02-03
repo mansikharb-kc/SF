@@ -34,20 +34,35 @@ const getSafeColumnName = (header) => {
 const ensureTableExists = async (tableName, headers) => {
     const sanitizedTableName = sanitizeIdentifier(tableName);
 
-    const idIndex = headers.findIndex(h => getSafeColumnName(h) === 'sheet_id');
+    // Map headers to safe column names AND deduplicate them
+    const seenNames = new Set();
+    const safeColumns = [];
 
-    // Map headers to safe column names
-    const columnsSQL = headers.map((h, index) => {
+    // First, find the ID column
+    let idIndex = headers.findIndex(h => getSafeColumnName(h) === 'sheet_id');
+    if (idIndex === -1 && headers.length > 0) idIndex = 0;
+
+    headers.forEach((h, index) => {
         let safeName = getSafeColumnName(h);
 
-        // Use sheet_id if it's the named ID column OR if we're falling back to the first column
-        const isIdColumn = safeName === 'sheet_id' || (idIndex === -1 && index === 0);
+        // Handle name collisions
+        let finalName = safeName;
+        let counter = 1;
+        while (seenNames.has(finalName)) {
+            finalName = `${safeName}_${counter++}`;
+        }
+        seenNames.add(finalName);
+
+        const isIdColumn = index === idIndex;
 
         if (isIdColumn) {
-            return `"sheet_id" VARCHAR(255) PRIMARY KEY`;
+            safeColumns.push(`"sheet_id" VARCHAR(255) PRIMARY KEY`);
+        } else {
+            safeColumns.push(`"${finalName}" TEXT`);
         }
-        return `"${safeName}" TEXT`;
-    }).join(', ');
+    });
+
+    const columnsSQL = safeColumns.join(', ');
 
     const createQuery = `
     CREATE TABLE IF NOT EXISTS "${sanitizedTableName}" (
@@ -62,9 +77,32 @@ const ensureTableExists = async (tableName, headers) => {
     const client = await db.connect();
     try {
         await client.query(createQuery);
+
+        // --- AUTO-MIGRATION: Add missing columns if table already exists ---
+        // This ensures the "leads" table always contains all possible columns from all sheets
+        if (sanitizedTableName === 'leads') {
+            for (const colDef of safeColumns) {
+                // colDef is something like: "col_name" TEXT or "sheet_id" VARCHAR(255) PRIMARY KEY
+                const match = colDef.match(/"([^"]+)"\s+(.+)/);
+                if (match) {
+                    const colName = match[1];
+                    const colType = match[2];
+                    if (colName !== 'sheet_id') {
+                        // sheet_id is the primary key and always exists, others might not
+                        try {
+                            // Postgres 9.6+ supports ADD COLUMN IF NOT EXISTS
+                            await client.query(`ALTER TABLE "${sanitizedTableName}" ADD COLUMN IF NOT EXISTS "${colName}" ${colType}`);
+                        } catch (err) {
+                            // Non-critical: column might already exist or DDL locking issue
+                        }
+                    }
+                }
+            }
+        }
     } finally {
         client.release();
     }
+
 
     return sanitizedTableName;
 };
@@ -261,8 +299,8 @@ const mergeTempToLeads = async (tempTable, targetTable) => {
             console.log(`✅ Sync Complete: ${insertedCount} new records inserted into ${cleanTarget}.`);
         } else {
             console.error(`❌ Sync Failed: Required columns (including ${matchCol}) not found.`);
-            // console.log("Temp Cols:", columnNames);
-            // console.log("Target Cols:", targetColNames);
+            console.log("Temp Table:", cleanTemp, "Cols:", columnNames);
+            console.log("Target Table:", cleanTarget, "Cols:", targetColNames);
             throw new Error(`MISSING_REQUIRED_COLUMNS`);
         }
 
