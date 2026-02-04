@@ -65,31 +65,25 @@ router.get('/history', async (req, res) => {
 router.get('/leads', async (req, res) => {
     let { search, limit = 50, offset = 0 } = req.query;
     try {
-        // 1. Get all columns for the leads table to build a dynamic search
-        const { rows: colRows } = await db.query(`
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_name = 'leads' AND table_schema = 'public'
-        `);
-
-        if (colRows.length === 0) {
-            return res.json({ leads: [], total: 0 });
-        }
-
-        const reserved = ['_row_hash', '_batch_id', '_created_at'];
-        const searchableCols = colRows
-            .filter(c => !reserved.includes(c.column_name))
-            // Ensure we only use columns that can be cast to text safely
-            .map(c => `"${c.column_name}"`);
-
         let query = 'SELECT * FROM "leads"';
         let countQuery = 'SELECT COUNT(*) FROM "leads"';
         const params = [];
 
         search = (search || '').trim();
 
-        if (search && searchableCols.length > 0) {
-            // Use ::text cast to avoid errors with non-string columns and ILIKE
+        if (search) {
+            // Target specific core columns for better accuracy and performance
+            // Using ::text for type safety with platform or numeric fields
+            const searchableCols = [
+                '"full_name"',
+                '"email"',
+                '"city"',
+                '"phone_number"',
+                '"sheet_id"',
+                '"form_name"',
+                '"campaign_name"'
+            ];
+
             const searchClause = searchableCols.map(col => `${col}::text ILIKE $1`).join(' OR ');
             query += ` WHERE ${searchClause}`;
             countQuery += ` WHERE ${searchClause}`;
