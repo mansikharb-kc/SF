@@ -555,21 +555,21 @@ function App() {
             <nav className="hidden lg:flex items-center gap-1">
               <button
                 onClick={() => setActiveView('google-import')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'google-import' ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'google-import' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
               >
                 <Cloud className="w-4 h-4" />
                 Google Import
               </button>
               <button
                 onClick={() => setActiveView('zoho-export')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'zoho-export' ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'zoho-export' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
               >
                 <Share2 className="w-4 h-4" />
                 Zoho Export
               </button>
               <button
                 onClick={() => setActiveView('leads')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'leads' ? 'bg-indigo-50 text-indigo-600 shadow-sm shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'leads' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
               >
                 <Database className="w-4 h-4" />
                 Leads
