@@ -56,10 +56,13 @@ function App() {
     }
   }, [userEmail, activeView]);
 
-  // Refetch leads when search or page changes
+  // Refetch leads when search or page changes (with Debounce)
   useEffect(() => {
     if (userEmail && activeView === 'all-leads') {
-      fetchLeads();
+      const timer = setTimeout(() => {
+        fetchLeads();
+      }, 500); // 500ms delay
+      return () => clearTimeout(timer);
     }
   }, [leadsSearch, leadsPage]);
 

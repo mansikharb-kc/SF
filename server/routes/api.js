@@ -63,33 +63,41 @@ router.get('/history', async (req, res) => {
 
 // Get All Leads (Global List)
 router.get('/leads', async (req, res) => {
-    const { search, limit = 50, offset = 0 } = req.query;
+    let { search, limit = 50, offset = 0 } = req.query;
     try {
         // 1. Get all columns for the leads table to build a dynamic search
         const { rows: colRows } = await db.query(`
             SELECT column_name, data_type 
             FROM information_schema.columns 
-            WHERE table_name = 'leads'
+            WHERE table_name = 'leads' AND table_schema = 'public'
         `);
+
+        if (colRows.length === 0) {
+            return res.json({ leads: [], total: 0 });
+        }
 
         const reserved = ['_row_hash', '_batch_id', '_created_at'];
         const searchableCols = colRows
             .filter(c => !reserved.includes(c.column_name))
+            // Ensure we only use columns that can be cast to text safely
             .map(c => `"${c.column_name}"`);
 
         let query = 'SELECT * FROM "leads"';
         let countQuery = 'SELECT COUNT(*) FROM "leads"';
         const params = [];
 
+        search = (search || '').trim();
+
         if (search && searchableCols.length > 0) {
-            const searchClause = searchableCols.map(col => `${col} ILIKE $1`).join(' OR ');
+            // Use ::text cast to avoid errors with non-string columns and ILIKE
+            const searchClause = searchableCols.map(col => `${col}::text ILIKE $1`).join(' OR ');
             query += ` WHERE ${searchClause}`;
             countQuery += ` WHERE ${searchClause}`;
             params.push(`%${search}%`);
         }
 
         // Final query for data
-        const dataQuery = query + ' ORDER BY _created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+        const dataQuery = query + ` ORDER BY _created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         const dataParams = [...params, parseInt(limit), parseInt(offset)];
 
         const { rows } = await db.query(dataQuery, dataParams);
@@ -102,6 +110,7 @@ router.get('/leads', async (req, res) => {
             offset: parseInt(offset)
         });
     } catch (error) {
+        console.error('Leads Search Error:', error);
         if (error.code === '42P01') { // undefined_table
             return res.json({ leads: [], total: 0 });
         }
