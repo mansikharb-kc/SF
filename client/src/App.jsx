@@ -583,15 +583,7 @@ function App() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-indigo-600 tracking-tight">{totalLeads.toLocaleString()}</span>
-                    {history[0] && (
-                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold animate-bounce-subtle ${history[0].leads_inserted_count > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                        <RefreshCw className="w-2.5 h-2.5" />
-                        +{(history[0].leads_inserted_count || 0).toLocaleString()} synced
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-2xl font-black text-indigo-600 tracking-tight">{totalLeads.toLocaleString()}</span>
                   <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Total Records</span>
                 </div>
                 <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
