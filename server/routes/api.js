@@ -63,7 +63,7 @@ router.get('/history', async (req, res) => {
 
 // Get All Leads (Global List)
 router.get('/leads', async (req, res) => {
-    let { search, limit = 50, offset = 0 } = req.query;
+    let { search, category = 'all', limit = 50, offset = 0 } = req.query;
     try {
         let query = 'SELECT * FROM "leads"';
         let countQuery = 'SELECT COUNT(*) FROM "leads"';
@@ -72,17 +72,29 @@ router.get('/leads', async (req, res) => {
         search = (search || '').trim();
 
         if (search) {
-            // Target specific core columns for better accuracy and performance
-            // Using ::text for type safety with platform or numeric fields
-            const searchableCols = [
-                '"full_name"',
-                '"email"',
-                '"city"',
-                '"phone_number"',
-                '"sheet_id"',
-                '"form_name"',
-                '"campaign_name"'
-            ];
+            let searchableCols = [];
+
+            // Map frontend categories to database columns
+            switch (category) {
+                case 'city': searchableCols = ['"city"']; break;
+                case 'email': searchableCols = ['"email"']; break;
+                case 'phone': searchableCols = ['"phone_number"']; break;
+                case 'campaign': searchableCols = ['"campaign_name"']; break;
+                case 'brand': searchableCols = ['"brand_name"']; break;
+                case 'name': searchableCols = ['"full_name"']; break;
+                default:
+                    // 'all' includes core fields and sheet/form identifiers
+                    searchableCols = [
+                        '"full_name"',
+                        '"email"',
+                        '"city"',
+                        '"phone_number"',
+                        '"sheet_id"',
+                        '"brand_name"',
+                        '"campaign_name"',
+                        '"form_name"'
+                    ];
+            }
 
             const searchClause = searchableCols.map(col => `${col}::text ILIKE $1`).join(' OR ');
             query += ` WHERE ${searchClause}`;

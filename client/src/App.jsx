@@ -24,6 +24,7 @@ function App() {
   const [totalLeads, setTotalLeads] = useState(0);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [leadsSearch, setLeadsSearch] = useState('');
+  const [leadsCategory, setLeadsCategory] = useState('all');
   const [leadsPage, setLeadsPage] = useState(0);
   const [leadsLimit] = useState(50);
   const [activeView, setActiveView] = useState('history'); // 'history' or 'all-leads'
@@ -58,7 +59,7 @@ function App() {
     }
   }, [userEmail, activeView]);
 
-  // Refetch leads when search or page changes (with Debounce)
+  // Refetch leads when search, category, or page changes (with Debounce)
   useEffect(() => {
     if (userEmail && activeView === 'all-leads') {
       if (!leadsSearch.trim()) {
@@ -71,7 +72,7 @@ function App() {
       }, 500); // 500ms delay
       return () => clearTimeout(timer);
     }
-  }, [leadsSearch, leadsPage]);
+  }, [leadsSearch, leadsCategory, leadsPage]);
 
 
   const fetchHistory = async () => {
@@ -88,7 +89,7 @@ function App() {
     setLeadsLoading(true);
     try {
       const { getLeads } = await import('./services/api');
-      const data = await getLeads(leadsSearch, leadsLimit, leadsPage * leadsLimit);
+      const data = await getLeads(leadsSearch, leadsCategory, leadsLimit, leadsPage * leadsLimit);
       setAllLeads(data.leads);
       setTotalLeads(data.total);
     } catch (error) {
@@ -610,26 +611,45 @@ function App() {
               </div>
             </div>
 
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                <Layout className="w-6 h-6 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search by city, name, email, or ID..."
-                value={leadsSearch}
-                onChange={(e) => {
-                  setLeadsSearch(e.target.value);
-                  setLeadsPage(0);
-                  if (activeView !== 'all-leads') setActiveView('all-leads');
-                }}
-                className="w-full pl-14 pr-16 py-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/5 transition-all text-xl shadow-inner placeholder:text-slate-300"
-              />
-              {leadsLoading && (
-                <div className="absolute inset-y-0 right-5 flex items-center">
-                  <div className="w-6 h-6 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+            <div className="flex flex-col sm:flex-row gap-4 items-stretch group">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                  <Layout className="w-6 h-6 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                 </div>
-              )}
+                <input
+                  type="text"
+                  placeholder={`Search by ${leadsCategory === 'all' ? 'any field' : leadsCategory}...`}
+                  value={leadsSearch}
+                  onChange={(e) => {
+                    setLeadsSearch(e.target.value);
+                    setLeadsPage(0);
+                    if (activeView !== 'all-leads') setActiveView('all-leads');
+                  }}
+                  className="w-full pl-14 pr-16 py-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/5 transition-all text-xl shadow-inner placeholder:text-slate-300"
+                />
+                {leadsLoading && (
+                  <div className="absolute inset-y-0 right-5 flex items-center">
+                    <div className="w-6 h-6 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+
+              <select
+                value={leadsCategory}
+                onChange={(e) => {
+                  setLeadsCategory(e.target.value);
+                  setLeadsPage(0);
+                }}
+                className="px-4 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 text-slate-600 font-bold text-sm cursor-pointer hover:bg-white transition-all min-w-[160px]"
+              >
+                <option value="all">All Fields</option>
+                <option value="name">Full Name</option>
+                <option value="email">Email</option>
+                <option value="city">City</option>
+                <option value="phone">Phone No</option>
+                <option value="campaign">Campaign</option>
+                <option value="brand">Brand Name</option>
+              </select>
             </div>
           </div>
 

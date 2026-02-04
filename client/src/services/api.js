@@ -42,9 +42,9 @@ export const deleteRecord = async (tableName, id) => {
     return response.data;
 };
 
-export const getLeads = async (search = '', limit = 50, offset = 0) => {
+export const getLeads = async (search = '', category = 'all', limit = 50, offset = 0) => {
     const response = await API.get('/api/leads', {
-        params: { search, limit, offset }
+        params: { search, category, limit, offset }
     });
     return response.data;
 };
