@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Database, Clock, Layout, FileText, ChevronRight, Trash2, HelpCircle, Download, Cloud, Share2, Search, Filter } from 'lucide-react';
+import { RefreshCw, Database, Clock, Layout, FileText, ChevronRight, Trash2, HelpCircle, Download, Cloud, Share2, Search, Filter, Sun, Moon } from 'lucide-react';
 import { syncSheet, getHistory, getData, deleteRecord } from './services/api';
 import { format } from 'date-fns';
 
@@ -28,6 +28,18 @@ function App() {
   const [leadsPage, setLeadsPage] = useState(0);
   const [leadsLimit] = useState(50);
   const [activeView, setActiveView] = useState('google-import'); // 'google-import', 'zoho-export', 'leads'
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('sf_theme') === 'dark');
+
+  // Dark Mode Effect
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('sf_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('sf_theme', 'light');
+    }
+  }, [isDarkMode]);
 
 
   // Load history on mount (only if logged in)
@@ -538,9 +550,9 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans selection:bg-indigo-100 transition-colors duration-300">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
@@ -555,21 +567,21 @@ function App() {
             <nav className="hidden lg:flex items-center gap-1">
               <button
                 onClick={() => setActiveView('google-import')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'google-import' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'google-import' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
               >
                 <Cloud className="w-4 h-4" />
                 Google Import
               </button>
               <button
                 onClick={() => setActiveView('zoho-export')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'zoho-export' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'zoho-export' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
               >
                 <Share2 className="w-4 h-4" />
                 Zoho Export
               </button>
               <button
                 onClick={() => setActiveView('leads')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'leads' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'leads' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
               >
                 <Database className="w-4 h-4" />
                 Leads
@@ -577,13 +589,20 @@ function App() {
             </nav>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-xs font-semibold text-slate-900">{userEmail}</span>
+              <span className="text-xs font-semibold text-slate-900 dark:text-white">{userEmail}</span>
               <span className="text-[10px] text-slate-400">Primary Admin</span>
             </div>
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
             >
               Sign Out
             </button>
@@ -617,19 +636,19 @@ function App() {
         {activeView === 'google-import' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Auto Sync Status */}
-            <section className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 p-8 transition-all hover:shadow-2xl">
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800 p-8 transition-all hover:shadow-2xl">
               <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold mb-3 flex items-center gap-3">
-                    <div className="bg-emerald-100 p-2 rounded-xl">
-                      <RefreshCw className="w-6 h-6 text-emerald-600" />
+                  <h2 className="text-2xl font-bold mb-3 flex items-center gap-3 dark:text-white">
+                    <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-xl">
+                      <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     Google Sheets Synchronization
                   </h2>
-                  <p className="text-slate-600 mb-6 text-lg">
+                  <p className="text-slate-600 dark:text-slate-400 mb-6 text-lg">
                     The system automatically monitors and imports data from your linked Google Sheet every 30 minutes.
                     <br />
-                    <span className="text-sm text-slate-400 font-mono mt-2 block">Source: Architects & Designers INDIA 2</span>
+                    <span className="text-sm text-slate-400 dark:text-slate-500 font-mono mt-2 block">Source: Architects & Designers INDIA 2</span>
                   </p>
 
                   <div className="flex gap-4">
@@ -646,9 +665,9 @@ function App() {
                   </div>
                 </div>
 
-                <div className="bg-slate-50 border-2 border-slate-100 px-8 py-6 rounded-3xl text-center min-w-[260px] shadow-inner">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-black mb-2">System Pulse</div>
-                  <div className="text-4xl font-black text-slate-900 tracking-tighter">
+                <div className="bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 px-8 py-6 rounded-3xl text-center min-w-[260px] shadow-inner">
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] font-black mb-2">System Pulse</div>
+                  <div className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {history.length > 0 ? format(new Date(history[0].sync_timestamp), 'h:mm a') : '--:--'}
                   </div>
                   <div className="flex flex-col items-center gap-2 mt-4">
@@ -670,26 +689,26 @@ function App() {
 
             {/* Sync Result Details */}
             {syncResult && (
-              <section className="bg-white rounded-3xl shadow-xl border border-emerald-100 p-8 animate-in zoom-in duration-500">
-                <h2 className="text-xl font-bold mb-6 text-emerald-600 flex items-center gap-3">
-                  <div className="bg-emerald-100 p-2 rounded-xl">
+              <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-emerald-100 dark:border-emerald-900/30 p-8 animate-in zoom-in duration-500">
+                <h2 className="text-xl font-bold mb-6 text-emerald-600 dark:text-emerald-400 flex items-center gap-3">
+                  <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-xl">
                     <Cloud className="w-5 h-5" />
                   </div>
                   Sync Successfully Completed
                 </h2>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {syncResult.results.map((res, idx) => (
-                    <div key={idx} className="border-2 border-slate-50 rounded-2xl p-5 bg-slate-50/50 hover:bg-white hover:border-emerald-100 transition-all group">
-                      <h3 className="font-bold text-slate-800 mb-3 flex justify-between items-center">
+                    <div key={idx} className="border-2 border-slate-50 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-white dark:hover:bg-slate-800 hover:border-emerald-100 dark:hover:border-emerald-900/50 transition-all group">
+                      <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 flex justify-between items-center">
                         {res.sheet}
                         <span className="text-[10px] bg-emerald-500 text-white px-2 py-1 rounded-lg">
                           +{res.inserted} new
                         </span>
                       </h3>
-                      <p className="text-xs text-slate-500 mb-3">Verified {res.found || 0} records across the sheet.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Verified {res.found || 0} records across the sheet.</p>
                       <div className="flex flex-wrap gap-1">
                         {res.columns && res.columns.slice(0, 5).map((col) => (
-                          <span key={col} className="text-[9px] bg-white border border-slate-100 text-slate-400 px-2 py-0.5 rounded uppercase font-bold">
+                          <span key={col} className="text-[9px] bg-white dark:bg-slate-700 border border-slate-100 dark:border-slate-600 text-slate-400 dark:text-slate-300 px-2 py-0.5 rounded uppercase font-bold">
                             {col}
                           </span>
                         ))}
@@ -702,10 +721,10 @@ function App() {
 
             {/* Sync History & Detailed View */}
             <div className="grid lg:grid-cols-3 gap-8">
-              <section className="lg:col-span-1 bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[700px]">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-slate-400" />
+              <section className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px]">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                     Sync Logs
                   </h3>
                   <span className="text-[10px] bg-indigo-600 text-white px-3 py-1 rounded-full font-black uppercase tracking-widest">{history.length} Batches</span>
@@ -717,57 +736,57 @@ function App() {
                       onClick={() => handleViewData(log)}
                       className={`p-4 rounded-2xl border-2 transition-all cursor-pointer group
                         ${selectedBatch?.id === log.id
-                          ? 'bg-indigo-50 border-indigo-200 shadow-lg shadow-indigo-100'
-                          : 'bg-white border-slate-50 hover:border-slate-200 hover:shadow-md'}
+                          ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 shadow-lg shadow-indigo-100 dark:shadow-none'
+                          : 'bg-white dark:bg-slate-900 border-slate-50 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-md'}
                       `}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-bold text-slate-800 text-sm truncate">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">
                           {log.sheet_name}
                         </span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase">
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">
                           {format(new Date(log.sync_timestamp), 'HH:mm • MMM d')}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
                           <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg
-                            ${log.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            ${log.status === 'SUCCESS' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
                             {log.status === 'SUCCESS' ? 'Done' : 'Fail'}
                           </span>
-                          <span className="text-[10px] text-slate-500 font-bold">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">
                             {log.leads_inserted_count > 0 ? (
-                              <span className="text-emerald-600">+{log.leads_inserted_count} new</span>
+                              <span className="text-emerald-600 dark:text-emerald-400">+{log.leads_inserted_count} new</span>
                             ) : (
                               '0 new'
                             )}
                           </span>
                         </div>
-                        <ChevronRight className={`w-4 h-4 transition-transform ${selectedBatch?.id === log.id ? 'translate-x-1 text-indigo-500' : 'text-slate-300'}`} />
+                        <ChevronRight className={`w-4 h-4 transition-transform ${selectedBatch?.id === log.id ? 'translate-x-1 text-indigo-500' : 'text-slate-300 dark:text-slate-600'}`} />
                       </div>
                     </div>
                   ))}
                 </div>
               </section>
 
-              <section className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[700px] relative">
+              <section className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px] relative">
                 {!selectedBatch ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-4">
-                    <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center border-2 border-slate-100">
-                      <FileText className="w-10 h-10 text-slate-200" />
+                    <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-100 dark:border-slate-700">
+                      <FileText className="w-10 h-10 text-slate-200 dark:text-slate-700" />
                     </div>
                     <div className="max-w-xs">
-                      <p className="text-slate-800 font-bold text-lg">Detailed Inspection</p>
-                      <p className="text-slate-400 text-sm">Select any synchronization log from the list to inspect the data lifecycle and specific sheet records.</p>
+                      <p className="text-slate-800 dark:text-slate-200 font-bold text-lg">Detailed Inspection</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-sm">Select any synchronization log from the list to inspect the data lifecycle and specific sheet records.</p>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
                       <div>
-                        <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                           {selectedBatch.sheet_name}
-                          <span className="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 uppercase">
+                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 uppercase">
                             ID: {selectedBatch.batch_id.slice(0, 8)}
                           </span>
                         </h3>
@@ -776,26 +795,26 @@ function App() {
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="flex-1 overflow-auto bg-white p-4">
+                    <div className="flex-1 overflow-auto bg-white dark:bg-slate-950 p-4">
                       {viewLoading ? (
                         <div className="flex items-center justify-center h-full">
                           <RefreshCw className="w-10 h-10 text-indigo-500 animate-spin" />
                         </div>
                       ) : (
-                        <div className="rounded-2xl border-2 border-slate-50 overflow-hidden shadow-inner">
+                        <div className="rounded-2xl border-2 border-slate-50 dark:border-slate-800 overflow-hidden shadow-inner">
                           <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-50 border-b-2 border-slate-100">
+                            <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-800">
                               <tr>
                                 {Object.keys(viewData[0] || {}).filter(k => !k.startsWith('_')).map(key => (
-                                  <th key={key} className="px-5 py-4 font-black uppercase tracking-widest text-slate-500">{key}</th>
+                                  <th key={key} className="px-5 py-4 font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{key}</th>
                                 ))}
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-50">
+                            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                               {viewData.map((row, i) => (
-                                <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800 transition-colors">
                                   {Object.keys(row).filter(k => !k.startsWith('_')).map(key => (
-                                    <td key={key} className="px-5 py-3 whitespace-nowrap text-slate-600">{row[key]}</td>
+                                    <td key={key} className="px-5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">{row[key]}</td>
                                   ))}
                                 </tr>
                               ))}
@@ -811,52 +830,52 @@ function App() {
 
             {/* Maintenance Panels */}
             <div className="grid md:grid-cols-2 gap-8 mt-8">
-              <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8">
-                <h2 className="text-xl font-bold mb-6 text-red-600 flex items-center gap-3">
+              <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+                <h2 className="text-xl font-bold mb-6 text-red-600 dark:text-red-400 flex items-center gap-3">
                   <Trash2 className="w-6 h-6" />
                   Registry Maintenance
                 </h2>
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Archive ID (Sheet ID)</label>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2 ml-1">Archive ID (Sheet ID)</label>
                     <div className="flex gap-3">
                       <input
                         type="text"
                         value={deleteInputId}
                         onChange={(e) => setDeleteInputId(e.target.value)}
                         placeholder="EX: 1234567-890"
-                        className="flex-1 px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-500 focus:bg-white transition-all font-mono"
+                        className="flex-1 px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:border-red-500 dark:focus:border-red-400 focus:bg-white dark:focus:bg-slate-800 transition-all font-mono dark:text-white"
                       />
                       <button
                         onClick={handleManualDelete}
                         disabled={loading}
-                        className="px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-red-600 transition-colors shadow-lg active:scale-95 disabled:opacity-50"
+                        className="px-6 py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-bold hover:bg-red-600 dark:hover:bg-red-500 transition-colors shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         Remove Record
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                     Deleting a record here will remove it from the database and prevent it from being re-synced in the future. Use this to permanently filter out bad data.
                   </p>
                 </div>
               </section>
 
-              <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8">
-                <h2 className="text-xl font-bold mb-6 text-indigo-600 flex items-center gap-3">
+              <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+                <h2 className="text-xl font-bold mb-6 text-indigo-600 dark:text-indigo-400 flex items-center gap-3">
                   <HelpCircle className="w-6 h-6" />
                   Sync Configuration
                 </h2>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <span className="text-sm font-bold text-slate-700 uppercase tracking-tighter">Auto-Sync Interval</span>
+                  <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tighter">Auto-Sync Interval</span>
                     <span className="text-xs bg-indigo-600 text-white px-3 py-1 rounded-full font-bold shadow-sm shadow-indigo-200">30 Minutes</span>
                   </div>
-                  <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <span className="text-sm font-bold text-slate-700 uppercase tracking-tighter">Source Identity</span>
-                    <span className="text-xs font-mono text-indigo-600">1ZOm...ksEZiY</span>
+                  <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tighter">Source Identity</span>
+                    <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400">1ZOm...ksEZiY</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 italic text-center px-4">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center px-4">
                     The system pulse is managed by GitHub Actions workflows for maximum reliability and uptime.
                   </p>
                 </div>
@@ -867,37 +886,37 @@ function App() {
 
         {activeView === 'zoho-export' && (
           <div className="animate-in fade-in zoom-in duration-500">
-            <section className="bg-white rounded-3xl shadow-2xl border-2 border-slate-100 overflow-hidden relative">
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border-2 border-slate-100 dark:border-slate-800 overflow-hidden relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 rounded-full -mr-32 -mt-32"></div>
               <div className="p-12 md:p-20 text-center space-y-8 relative">
-                <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] shadow-2xl shadow-indigo-300 flex items-center justify-center mx-auto transform rotate-12">
+                <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] shadow-2xl shadow-indigo-300 dark:shadow-indigo-900/50 flex items-center justify-center mx-auto transform rotate-12">
                   <Share2 className="w-12 h-12 text-white transform -rotate-12" />
                 </div>
                 <div className="space-y-3">
-                  <h2 className="text-4xl font-black text-slate-900 tracking-tight">Zoho Export Engine</h2>
-                  <p className="text-slate-500 text-xl max-w-xl mx-auto font-medium">
+                  <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Zoho Export Engine</h2>
+                  <p className="text-slate-500 dark:text-slate-400 text-xl max-w-xl mx-auto font-medium">
                     Seamlessly bridge your synchronization pipeline with your CRM workflows.
                   </p>
                 </div>
-                <div className="inline-flex items-center gap-3 px-6 py-3 bg-amber-50 text-amber-700 rounded-full font-bold border border-amber-200 animate-pulse">
+                <div className="inline-flex items-center gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full font-bold border border-amber-200 dark:border-amber-900/50 animate-pulse">
                   <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></div>
                   Coming Soon - Feature under Development
                 </div>
                 <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto pt-8">
-                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-2">
-                    <Download className="w-6 h-6 text-indigo-500 mx-auto" />
-                    <p className="font-bold text-slate-800">One-Click Export</p>
-                    <p className="text-xs text-slate-400">Push synchronized leads directly to your Zoho CRM leads module.</p>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-2">
+                    <Download className="w-6 h-6 text-indigo-500" />
+                    <p className="font-bold text-slate-800 dark:text-slate-200">One-Click Export</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Push synchronized leads directly to your Zoho CRM leads module.</p>
                   </div>
-                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-2">
-                    <Filter className="w-6 h-6 text-indigo-500 mx-auto" />
-                    <p className="font-bold text-slate-800">Filtered Sync</p>
-                    <p className="text-xs text-slate-400">Export only specific campaigns or cities based on your requirements.</p>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-2">
+                    <Filter className="w-6 h-6 text-indigo-500" />
+                    <p className="font-bold text-slate-800 dark:text-slate-200">Filtered Sync</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Export only specific campaigns or cities based on your requirements.</p>
                   </div>
-                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-2">
-                    <Layout className="w-6 h-6 text-indigo-500 mx-auto" />
-                    <p className="font-bold text-slate-800">Field Mapping</p>
-                    <p className="text-xs text-slate-400">Custom map column names from your sheets to your Zoho database fields.</p>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-2">
+                    <Layout className="w-6 h-6 text-indigo-500" />
+                    <p className="font-bold text-slate-800 dark:text-slate-200">Field Mapping</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Custom map column names from your sheets to your Zoho database fields.</p>
                   </div>
                 </div>
               </div>
@@ -908,7 +927,7 @@ function App() {
         {activeView === 'leads' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Leads Search & Control Bar */}
-            <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex items-center gap-4 w-full md:w-2/3">
                 <div className="relative flex-1 group">
                   <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
@@ -922,7 +941,7 @@ function App() {
                       setLeadsSearch(e.target.value);
                       setLeadsPage(0);
                     }}
-                    className="w-full pl-14 pr-16 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl outline-none focus:border-indigo-500 focus:bg-white transition-all text-lg shadow-inner"
+                    className="w-full pl-14 pr-16 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-800 rounded-2xl outline-none focus:border-indigo-500 dark:focus:border-indigo-400 focus:bg-white dark:focus:bg-slate-800 transition-all text-lg shadow-inner dark:text-white"
                   />
                   {leadsLoading && (
                     <div className="absolute inset-y-0 right-5 flex items-center">
@@ -930,10 +949,10 @@ function App() {
                     </div>
                   )}
                 </div>
-                <div className="h-10 w-[2px] bg-slate-100 hidden md:block mx-2"></div>
+                <div className="h-10 w-[2px] bg-slate-100 dark:bg-slate-800 hidden md:block mx-2"></div>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 rounded-xl">
-                    <Filter className="w-5 h-5 text-indigo-600" />
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                    <Filter className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <select
                     value={leadsCategory}
@@ -941,7 +960,7 @@ function App() {
                       setLeadsCategory(e.target.value);
                       setLeadsPage(0);
                     }}
-                    className="bg-transparent font-bold text-slate-700 outline-none text-sm cursor-pointer hover:text-indigo-600 transition-colors"
+                    className="bg-transparent font-bold text-slate-700 dark:text-slate-300 outline-none text-sm cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                   >
                     <option value="all">Everywhere</option>
                     <option value="name">Full Name</option>
@@ -956,12 +975,12 @@ function App() {
 
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <div className="text-xl font-black text-indigo-600 leading-none">{totalLeads.toLocaleString()}</div>
-                  <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Total Records</div>
+                  <div className="text-xl font-black text-indigo-600 dark:text-indigo-400 leading-none">{totalLeads.toLocaleString()}</div>
+                  <div className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest mt-1">Total Records</div>
                 </div>
                 <button
                   onClick={fetchLeads}
-                  className="p-3 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all"
+                  className="p-3 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 active:scale-95 transition-all"
                 >
                   <RefreshCw className={`w-5 h-5 ${leadsLoading ? 'animate-spin' : ''}`} />
                 </button>
@@ -969,25 +988,25 @@ function App() {
             </section>
 
             {/* Main Record Table */}
-            <section className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden min-h-[600px] flex flex-col">
               <div className="flex-1 overflow-x-auto relative custom-scrollbar">
                 {leadsLoading && allLeads.length === 0 ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 z-10 space-y-4">
-                    <div className="w-16 h-16 border-8 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="font-bold text-slate-400">Loading Secure Database...</p>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 dark:bg-slate-900/50 z-10 space-y-4">
+                    <div className="w-16 h-16 border-8 border-indigo-100 dark:border-indigo-900/30 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="font-bold text-slate-400 dark:text-slate-500">Loading Secure Database...</p>
                   </div>
                 ) : allLeads.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-40 text-center space-y-4">
-                    <Database className="w-20 h-20 text-slate-100" />
+                    <Database className="w-20 h-20 text-slate-100 dark:text-slate-800" />
                     <div className="space-y-1">
-                      <p className="text-xl font-bold text-slate-800">No Records Found</p>
-                      <p className="text-slate-400">We couldn't find any results matching your current search parameters.</p>
+                      <p className="text-xl font-bold text-slate-800 dark:text-slate-200">No Records Found</p>
+                      <p className="text-slate-400 dark:text-slate-500">We couldn't find any results matching your current search parameters.</p>
                     </div>
                     <button onClick={() => setLeadsSearch('')} className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700">Clear Search</button>
                   </div>
                 ) : (
                   <table className="w-full text-sm text-left">
-                    <thead className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/80 sticky top-0 z-20 backdrop-blur-md border-b-2 border-slate-100">
+                    <thead className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 bg-slate-50/80 dark:bg-slate-900/80 sticky top-0 z-20 backdrop-blur-md border-b-2 border-slate-100 dark:border-slate-800">
                       <tr>
                         <th className="px-8 py-5">Full Identity</th>
                         <th className="px-6 py-5">Contact Details</th>
@@ -997,7 +1016,7 @@ function App() {
                         <th className="px-6 py-5 text-right pr-8">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y-2 divide-slate-50">
+                    <tbody className="divide-y-2 divide-slate-50 dark:divide-slate-800">
                       {allLeads.map((lead) => {
                         // Dynamic lookups
                         const f = (p) => {
@@ -1012,15 +1031,15 @@ function App() {
                         const camp = lead.campaign_name || lead.form_name || 'Generic';
 
                         return (
-                          <tr key={lead.sheet_id} className="hover:bg-indigo-50/20 transition-all group">
+                          <tr key={lead.sheet_id} className="hover:bg-indigo-50/20 dark:hover:bg-indigo-900/10 transition-all group">
                             <td className="px-8 py-5">
                               <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm">
+                                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm">
                                   {n ? n.charAt(0).toUpperCase() : '?'}
                                 </div>
                                 <div>
-                                  <div className="font-bold text-slate-900 text-base">{n || 'Unidentified'}</div>
-                                  <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                                  <div className="font-bold text-slate-900 dark:text-slate-200 text-base">{n || 'Unidentified'}</div>
+                                  <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex items-center gap-1">
                                     <Share2 className="w-2.5 h-2.5" /> {lead.sheet_id.slice(0, 12)}
                                   </div>
                                 </div>
@@ -1028,36 +1047,36 @@ function App() {
                             </td>
                             <td className="px-6 py-5">
                               <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-600 group-hover:text-indigo-600 transition-colors">
+                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                   <FileText className="w-3.5 h-3.5 opacity-40" /> {e || 'No Email'}
                                 </div>
-                                <div className="flex items-center gap-2 text-slate-600">
+                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                                   <Share2 className="w-3.5 h-3.5 opacity-40 rotate-90" /> {p || 'No Phone'}
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-5">
                               <div className="inline-flex flex-col">
-                                <span className="font-bold text-slate-800">{c || 'Standalone'}</span>
-                                <span className="text-[10px] text-slate-400 font-medium">Platform ID: {lead.platform || 'N/A'}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{c || 'Standalone'}</span>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Platform ID: {lead.platform || 'N/A'}</span>
                               </div>
                             </td>
                             <td className="px-6 py-5">
                               <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
-                                <span className="font-bold text-slate-700 capitalize">{city || 'Global'}</span>
+                                <span className="font-bold text-slate-700 dark:text-slate-300 capitalize">{city || 'Global'}</span>
                               </div>
                             </td>
                             <td className="px-6 py-5">
                               <div className="max-w-[180px] truncate" title={camp}>
-                                <div className="text-[10px] font-black text-indigo-600 uppercase mb-0.5 truncate">{camp}</div>
-                                <div className="text-[9px] text-slate-400 font-medium">{format(new Date(lead._created_at), 'MMM d, yyyy')}</div>
+                                <div className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-0.5 truncate">{camp}</div>
+                                <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">{format(new Date(lead._created_at), 'MMM d, yyyy')}</div>
                               </div>
                             </td>
                             <td className="px-6 py-5 text-right pr-8">
                               <button
                                 onClick={() => handleDelete(lead)}
-                                className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                className="p-2.5 text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
                                 title="Delete Record"
                               >
                                 <Trash2 className="w-5 h-5" />
@@ -1072,27 +1091,27 @@ function App() {
               </div>
 
               {/* Table Footer / Pagination */}
-              <div className="px-8 py-5 bg-slate-50 border-t-2 border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-xs font-bold text-slate-400">
-                  SYSTEM PAGE <span className="text-indigo-600">{leadsPage + 1}</span>
+              <div className="px-8 py-5 bg-slate-50 dark:bg-slate-900/50 border-t-2 border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="text-xs font-bold text-slate-400 dark:text-slate-500">
+                  SYSTEM PAGE <span className="text-indigo-600 dark:text-indigo-400">{leadsPage + 1}</span>
                   <span className="mx-3 opacity-20">|</span>
-                  TOTAL CAPACITY <span className="text-slate-900">{totalLeads.toLocaleString()}</span>
+                  TOTAL CAPACITY <span className="text-slate-900 dark:text-white">{totalLeads.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setLeadsPage(p => p - 1)}
                     disabled={leadsPage === 0}
-                    className="p-2.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-500 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-90"
+                    className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-90 dark:text-white"
                   >
                     <ChevronRight className="w-5 h-5 rotate-180" />
                   </button>
-                  <div className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-md shadow-indigo-100">
+                  <div className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-md shadow-indigo-100 dark:shadow-none">
                     {leadsPage + 1}
                   </div>
                   <button
                     onClick={() => setLeadsPage(p => p + 1)}
                     disabled={(leadsPage + 1) * leadsLimit >= totalLeads}
-                    className="p-2.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-500 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-90"
+                    className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-90 dark:text-white"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -1102,9 +1121,9 @@ function App() {
           </div>
         )}
       </main>
-      <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+      <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
         <p>© 2026 SyncFlow Automation System</p>
-        <p>Admin Support: <a href="mailto:mansikharb.kc@gmail.com" className="text-indigo-500 hover:underline">mansikharb.kc@gmail.com</a></p>
+        <p>Admin Support: <a href="mailto:mansikharb.kc@gmail.com" className="text-indigo-500 dark:text-indigo-400 hover:underline">mansikharb.kc@gmail.com</a></p>
       </div>
     </div>
   );
