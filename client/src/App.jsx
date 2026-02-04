@@ -47,10 +47,12 @@ function App() {
 
     if (userEmail) {
       fetchHistory();
-      fetchLeads();
+      // Only fetch leads initially if there is a search (usually empty)
+      if (leadsSearch.trim()) fetchLeads();
+
       const interval = setInterval(() => {
         fetchHistory();
-        if (activeView === 'all-leads') fetchLeads();
+        if (activeView === 'all-leads' && leadsSearch.trim()) fetchLeads();
       }, 30000);
       return () => clearInterval(interval);
     }
@@ -59,6 +61,11 @@ function App() {
   // Refetch leads when search or page changes (with Debounce)
   useEffect(() => {
     if (userEmail && activeView === 'all-leads') {
+      if (!leadsSearch.trim()) {
+        setAllLeads([]);
+        setTotalLeads(0);
+        return;
+      }
       const timer = setTimeout(() => {
         fetchLeads();
       }, 500); // 500ms delay
@@ -619,7 +626,19 @@ function App() {
           </div>
 
           <div className="p-4 bg-slate-50/30">
-            {allLeads.length === 0 ? (
+            {!leadsSearch.trim() ? (
+              <div className="py-24 text-center space-y-4 animate-in fade-in zoom-in duration-500">
+                <div className="bg-white w-20 h-20 rounded-3xl shadow-lg flex items-center justify-center mx-auto border border-slate-100">
+                  <Database className="w-10 h-10 text-indigo-100" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-slate-800 font-bold text-lg">Leads Database Locked</p>
+                  <p className="text-slate-400 text-sm max-w-xs mx-auto">
+                    Please enter a search term (Name, City, or ID) to retrieve records from the global database.
+                  </p>
+                </div>
+              </div>
+            ) : allLeads.length === 0 ? (
               <div className="py-24 text-center space-y-4 animate-in fade-in zoom-in duration-500">
                 <div className="bg-white w-20 h-20 rounded-3xl shadow-lg flex items-center justify-center mx-auto border border-slate-100">
                   <Database className="w-10 h-10 text-slate-200" />
