@@ -214,11 +214,28 @@ const logSync = async (sheetName, tableName, details, batchId, status = 'SUCCESS
         // Ignore if exists
     }
 
-    await db.query(
+    const result = await db.query(
         `INSERT INTO "sync_logs" 
         (sheet_name, table_name, inserted_count, temp_inserted_count, leads_deleted_count, leads_inserted_count, batch_id, status, trigger_type) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id`,
         [sheetName, tableName, leadsInserted, tempInserted, leadsDeleted, leadsInserted, batchId, status, triggerType]
+    );
+
+    return result.rows[0].id;
+};
+
+const updateSyncLog = async (logId, details, status = 'SUCCESS') => {
+    const { tempInserted = 0, leadsDeleted = 0, leadsInserted = 0 } = details;
+    await db.query(
+        `UPDATE "sync_logs" 
+         SET inserted_count = $1, 
+             temp_inserted_count = $2, 
+             leads_deleted_count = $3, 
+             leads_inserted_count = $4, 
+             status = $5 
+         WHERE id = $6`,
+        [leadsInserted, tempInserted, leadsDeleted, leadsInserted, status, logId]
     );
 };
 
@@ -392,6 +409,7 @@ module.exports = {
     ensureTableExists,
     insertNewRecords,
     logSync,
+    updateSyncLog,
     truncateTable,
     mergeTempToLeads,
     getStats,

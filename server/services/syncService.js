@@ -1,5 +1,5 @@
 const { getSpreadsheetMetadata, getSheetValues } = require('./sheetService');
-const { ensureTableExists, insertNewRecords, logSync, truncateTable, mergeTempToLeads, getStats, sanitizeIdentifier } = require('./dbService');
+const { ensureTableExists, insertNewRecords, logSync, updateSyncLog, truncateTable, mergeTempToLeads, getStats, sanitizeIdentifier } = require('./dbService');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db');
 
@@ -61,14 +61,16 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
             // Google Tier 1 quota is ~60-100 requests per minute.
             await sleep(1500);
 
-            console.log(`Processing Sheet: ${sheetTitle}`);
-
+            let logId = null;
             try {
+                // Log START as Pending so user sees it in history immediately
+                logId = await logSync(sheetTitle, targetTableName, {}, batchId, 'PENDING', triggerType);
+
                 // Read Data
                 const data = await getSheetValues(SPREADSHEET_ID, `'${sheetTitle}'!A:ZZ`);
 
                 if (!data || data.length === 0) {
-                    console.log(`Sheet ${sheetTitle} is empty.`);
+                    await updateSyncLog(logId, {}, 'EMPTY');
                     results.push({ sheet: sheetTitle, status: 'EMPTY' });
                     continue;
                 }
@@ -133,18 +135,15 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
 
                 const mergeResult = await mergeTempToLeads(tempTableName, targetTableName);
 
-                // 4. Log
-                await logSync(
-                    sheetTitle,
-                    targetTableName,
+                // 4. Update Log with results
+                await updateSyncLog(
+                    logId,
                     {
                         tempInserted: insertedTempCount,
                         leadsDeleted: mergeResult.deletedCount,
                         leadsInserted: mergeResult.insertedCount
                     },
-                    batchId,
-                    mergeResult.success ? 'SUCCESS' : 'FAILED',
-                    triggerType
+                    mergeResult.success ? 'SUCCESS' : 'FAILED'
                 );
 
                 results.push({
