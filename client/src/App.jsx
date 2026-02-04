@@ -585,10 +585,10 @@ function App() {
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-2">
                     <span className="text-2xl font-black text-indigo-600 tracking-tight">{totalLeads.toLocaleString()}</span>
-                    {history[0]?.leads_inserted_count > 0 && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold animate-bounce-subtle">
+                    {history[0] && (
+                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold animate-bounce-subtle ${history[0].leads_inserted_count > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                         <RefreshCw className="w-2.5 h-2.5" />
-                        +{history[0].leads_inserted_count.toLocaleString()} synced
+                        +{(history[0].leads_inserted_count || 0).toLocaleString()} synced
                       </span>
                     )}
                   </div>
@@ -906,13 +906,18 @@ function App() {
                     <div className="flex justify-between items-end">
                       <div className="text-xs text-slate-500 flex items-center gap-2">
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium 
-                          ${log.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                          {log.status}
+                            ${log.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                          {log.status === 'SUCCESS' ? 'Live' : 'Failed'}
                         </span>
                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-500 font-mono border border-slate-200">
                           {log.trigger_type || 'AUTO'}
                         </span>
-                        <span className="">+{log.inserted_count} synced</span>
+                        <span className="text-[10px] text-slate-400">
+                          {log.temp_inserted_count || 0} checked <span className="mx-1">•</span>
+                          <span className={log.leads_inserted_count > 0 ? 'text-emerald-600 font-bold' : ''}>
+                            +{log.leads_inserted_count || 0} new
+                          </span>
+                        </span>
                       </div>
                       <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform ${selectedBatch?.id === log.id ? 'translate-x-1 text-indigo-500' : ''}`} />
                     </div>
