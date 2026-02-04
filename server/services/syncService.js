@@ -1,5 +1,5 @@
 const { getSpreadsheetMetadata, getSheetValues } = require('./sheetService');
-const { ensureTableExists, insertNewRecords, logSync, truncateTable, mergeTempToLeads } = require('./dbService');
+const { ensureTableExists, insertNewRecords, logSync, truncateTable, mergeTempToLeads, getStats, sanitizeIdentifier } = require('./dbService');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db');
 
@@ -32,6 +32,16 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
         } catch (dbError) {
             console.error('❌ Step 1: Database connection failed. Stopping sync.', dbError);
             throw new Error('DATABASE_CONNECTION_FAILED');
+        }
+
+        // Fetch last sync for validation (Rule 3)
+        const stats = await getStats();
+        const lastSyncTimestamp = stats.last_sync ? new Date(stats.last_sync.sync_timestamp) : new Date(0);
+        const currentSyncTime = new Date();
+
+        if (currentSyncTime <= lastSyncTimestamp) {
+            console.error(`❌ Sync aborted: current sync time (${currentSyncTime.toISOString()}) is not strictly greater than previous sync time (${lastSyncTimestamp.toISOString()}).`);
+            throw new Error('BACKWARD_OR_DUPLICATE_TIME_SYNC');
         }
 
         const meta = await getSpreadsheetMetadata(SPREADSHEET_ID);
@@ -68,12 +78,53 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
 
                 if (headers.length === 0) continue;
 
+                // --- DATA VALIDATION (Rules 1, 2, 4, 5) ---
+                const createdTimeIndex = headers.findIndex(h => sanitizeIdentifier(h) === 'created_time');
+                const validatedRows = [];
+                let skippedCount = 0;
+
+                for (const row of rows) {
+                    if (createdTimeIndex !== -1 && row[createdTimeIndex]) {
+                        try {
+                            const rawDate = row[createdTimeIndex].toString().trim();
+                            const createdDate = new Date(rawDate);
+
+                            if (isNaN(createdDate.getTime())) {
+                                console.warn(`[Skip] Invalid date format for created_time: "${rawDate}"`);
+                                skippedCount++;
+                                continue;
+                            }
+
+                            // Rule 1: Convert to UTC string
+                            const createdUtcStr = createdDate.toISOString();
+                            row[createdTimeIndex] = createdUtcStr;
+
+                            // Rule 2: sync_time strictly greater than created_time
+                            if (currentSyncTime <= createdDate) {
+                                console.warn(`[Skip] sync_time earlier than created_time (created: ${createdUtcStr}, sync: ${currentSyncTime.toISOString()})`);
+                                skippedCount++;
+                                continue;
+                            }
+                        } catch (err) {
+                            console.warn(`[Skip] Error processing created_time validation: ${err.message}`);
+                            skippedCount++;
+                            continue;
+                        }
+                    }
+                    validatedRows.push(row);
+                }
+
+                if (skippedCount > 0) {
+                    console.log(`⚠️ Skipped ${skippedCount} records in sheet "${sheetTitle}" due to validation rules.`);
+                }
+                // --- END VALIDATION ---
+
                 // 1. Prepare Temp Table
                 await db.query(`DROP TABLE IF EXISTS "${tempTableName}"`);
                 await ensureTableExists(tempTableName, headers);
 
-                // 2. Insert Records into temp_leads
-                const insertedTempCount = await insertNewRecords(tempTableName, headers, rows, batchId);
+                // 2. Insert Records into temp_leads (Using Validated Rows)
+                const insertedTempCount = await insertNewRecords(tempTableName, headers, validatedRows, batchId);
                 console.log(`Inserted ${insertedTempCount} rows into ${tempTableName}.`);
 
                 // 3. Merge temp_leads -> Leads (Differential Sync)

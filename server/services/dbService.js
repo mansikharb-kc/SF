@@ -397,5 +397,6 @@ module.exports = {
     getStats,
     ensureDeletedLeadsTable,
     ensureUsersTable,
-    ensureOtpsTable
+    ensureOtpsTable,
+    sanitizeIdentifier
 };
