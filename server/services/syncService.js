@@ -52,7 +52,8 @@ const syncSheetToDb = async (triggerType = 'MANUAL') => {
         console.log(`Starting sync for Spreadsheet: ${meta.properties.title} (Batch: ${batchId})`);
 
         const targetTableName = 'leads';
-        const tempTableName = 'temp_leads';
+        const batchTempSuffix = batchId.replace(/-/g, '_');
+        const tempTableName = `temp_leads_${batchTempSuffix}`;
 
         for (const sheet of sheets) {
             const sheetTitle = sheet.properties.title;
