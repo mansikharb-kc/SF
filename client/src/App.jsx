@@ -602,7 +602,7 @@ function App() {
             </div>
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+              className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
             >
               Sign Out
             </button>
@@ -613,19 +613,19 @@ function App() {
         <div className="lg:hidden px-4 pb-4 flex justify-center border-t border-slate-50 pt-3 gap-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveView('google-import')}
-            className={`px-3 py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all whitespace-nowrap ${activeView === 'google-import' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 bg-slate-50'}`}
+            className={`px-4 py-3 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all whitespace-nowrap ${activeView === 'google-import' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 bg-slate-50'}`}
           >
             Google Import
           </button>
           <button
             onClick={() => setActiveView('zoho-export')}
-            className={`px-3 py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all whitespace-nowrap ${activeView === 'zoho-export' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 bg-slate-50'}`}
+            className={`px-4 py-3 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all whitespace-nowrap ${activeView === 'zoho-export' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 bg-slate-50'}`}
           >
             Zoho Export
           </button>
           <button
             onClick={() => setActiveView('leads')}
-            className={`px-3 py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all whitespace-nowrap ${activeView === 'leads' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 bg-slate-50'}`}
+            className={`px-4 py-3 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all whitespace-nowrap ${activeView === 'leads' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 bg-slate-50'}`}
           >
             Leads
           </button>
@@ -665,7 +665,7 @@ function App() {
                   </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 px-8 py-6 rounded-3xl text-center min-w-[260px] shadow-inner">
+                <div className="bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 px-8 py-6 rounded-3xl text-center w-full md:w-auto md:min-w-[260px] shadow-inner">
                   <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] font-black mb-2">System Pulse</div>
                   <div className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {history.length > 0 ? format(new Date(history[0].sync_timestamp), 'h:mm a') : '--:--'}
@@ -699,9 +699,9 @@ function App() {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {syncResult.results.map((res, idx) => (
                     <div key={idx} className="border-2 border-slate-50 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-white dark:hover:bg-slate-800 hover:border-emerald-100 dark:hover:border-emerald-900/50 transition-all group">
-                      <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 flex justify-between items-center">
-                        {res.sheet}
-                        <span className="text-[10px] bg-emerald-500 text-white px-2 py-1 rounded-lg">
+                      <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 flex justify-between items-center gap-3">
+                        <span className="truncate">{res.sheet}</span>
+                        <span className="shrink-0 text-[10px] bg-emerald-500 text-white px-2 py-1 rounded-lg">
                           +{res.inserted} new
                         </span>
                       </h3>
@@ -721,7 +721,7 @@ function App() {
 
             {/* Sync History & Detailed View */}
             <div className="grid lg:grid-cols-3 gap-8">
-              <section className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px]">
+              <section className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[400px] lg:h-[700px]">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
                   <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
                     <Clock className="w-5 h-5 text-slate-400 dark:text-slate-500" />
@@ -769,7 +769,7 @@ function App() {
                 </div>
               </section>
 
-              <section className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px] relative">
+              <section className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[500px] lg:h-[700px] relative">
                 {!selectedBatch ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-4">
                     <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-100 dark:border-slate-700">
@@ -838,7 +838,7 @@ function App() {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2 ml-1">Archive ID (Sheet ID)</label>
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <input
                         type="text"
                         value={deleteInputId}
