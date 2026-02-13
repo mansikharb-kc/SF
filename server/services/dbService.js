@@ -305,11 +305,17 @@ const mergeTempToLeads = async (tempTable, targetTable) => {
         if (commonCols.length > 0) {
             const colsStr = commonCols.map(c => `"${c}"`).join(', ');
 
-            // Step 4: Insert Filtered Data
+            // Step 4: Insert Filtered Data using NOT EXISTS for better performance
             const insertQuery = `INSERT INTO "${cleanTarget}" (${colsStr}) 
-                                SELECT ${colsStr} FROM "${cleanTemp}" 
-                                WHERE "${matchCol}" NOT IN (SELECT "${matchCol}" FROM "${cleanTarget}")
-                                AND "${matchCol}" NOT IN (SELECT "sheet_id" FROM "deleted_leads")`;
+                                SELECT ${colsStr} FROM "${cleanTemp}" AS t
+                                WHERE NOT EXISTS (
+                                    SELECT 1 FROM "${cleanTarget}" AS f 
+                                    WHERE f."${matchCol}" = t."${matchCol}"
+                                )
+                                AND NOT EXISTS (
+                                    SELECT 1 FROM "deleted_leads" AS d
+                                    WHERE d."${matchCol}" = t."${matchCol}"
+                                )`;
 
             const res = await client.query(insertQuery);
             insertedCount = res.rowCount;

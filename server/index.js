@@ -26,16 +26,20 @@ app.get('/ping', (req, res) => res.json({ pong: true }));
 // 3. External Cron Sync Endpoint (Wakes Render from sleep)
 app.get('/cron-sync', async (req, res) => {
     console.log('⏰ GitHub Action Cron Sync Trigger Received');
-    try {
-        await syncSheetToDb('AUTO');
-        res.json({ success: true, message: 'Sync completed' });
-    } catch (error) {
-        if (error.message === 'SYNC_IN_PROGRESS') {
-            return res.json({ success: true, message: 'Sync already in progress' });
-        }
-        console.error('❌ Cron sync failed:', error);
-        res.status(500).json({ error: error.message });
-    }
+
+    // Run sync in background to avoid Render 100s timeout
+    syncSheetToDb('AUTO')
+        .then(() => console.log('✅ Background Cron Sync Completed Successfully'))
+        .catch(error => {
+            if (error.message !== 'SYNC_IN_PROGRESS') {
+                console.error('❌ Background Cron Sync Failed:', error);
+            } else {
+                console.log('⚠️ Sync skipped (already in progress)');
+            }
+        });
+
+    // Return success immediately
+    res.json({ success: true, message: 'Sync started in background' });
 });
 
 // 4. API Routes
