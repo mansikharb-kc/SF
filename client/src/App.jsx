@@ -734,35 +734,48 @@ function App() {
                     <div
                       key={log.id}
                       onClick={() => handleViewData(log)}
-                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer group
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer group flex flex-col gap-3
                         ${selectedBatch?.id === log.id
                           ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 shadow-lg shadow-indigo-100 dark:shadow-none'
                           : 'bg-white dark:bg-slate-900 border-slate-50 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-md'}
                       `}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">
+                      <div className="flex justify-between items-start">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate pr-2">
                           {log.sheet_name}
                         </span>
-                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">
-                          {format(new Date(log.sync_timestamp), 'HH:mm • MMM d')}
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase whitespace-nowrap">
+                          {format(new Date(log.sync_timestamp), 'HH:mm')}
+                          <span className="hidden sm:inline"> • {format(new Date(log.sync_timestamp), 'MMM d')}</span>
                         </span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg
-                            ${log.status === 'SUCCESS' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
-                            {log.status === 'SUCCESS' ? 'Done' : 'Fail'}
-                          </span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">
-                            {log.leads_inserted_count > 0 ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">+{log.leads_inserted_count} new</span>
-                            ) : (
-                              '0 new'
-                            )}
-                          </span>
+
+                      <div className="flex justify-between items-end">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md
+                              ${log.status === 'SUCCESS' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+                              {log.status === 'SUCCESS' ? 'Success' : 'Failed'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                              {log.trigger_type || 'AUTO'}
+                            </span>
+                          </div>
                         </div>
-                        <ChevronRight className={`w-4 h-4 transition-transform ${selectedBatch?.id === log.id ? 'translate-x-1 text-indigo-500' : 'text-slate-300 dark:text-slate-600'}`} />
+
+                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-bold
+                            ${log.leads_inserted_count > 0
+                            ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
+                          {log.leads_inserted_count > 0 ? (
+                            <>
+                              <Database className="w-3 h-3" />
+                              <span>+{log.leads_inserted_count} Records</span>
+                            </>
+                          ) : (
+                            <span>No New Data</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -782,44 +795,75 @@ function App() {
                   </div>
                 ) : (
                   <>
-                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
-                      <div>
-                        <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
-                          {selectedBatch.sheet_name}
-                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 uppercase">
-                            ID: {selectedBatch.batch_id.slice(0, 8)}
-                          </span>
-                        </h3>
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-2">
+                            {selectedBatch.sheet_name}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            <span>Batch ID: <span className="font-mono text-slate-700 dark:text-slate-300">{selectedBatch.batch_id.slice(0, 8)}</span></span>
+                            <span>•</span>
+                            <span>Synced at: {format(new Date(selectedBatch.sync_timestamp), 'PPp')}</span>
+                          </div>
+                        </div>
+                        <button onClick={closeDataView} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
-                      <button onClick={closeDataView} className="text-slate-400 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+
+                      <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <div className={`p-3 rounded-xl ${selectedBatch.leads_inserted_count > 0 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                          <Database className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Records Added</p>
+                          <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-1">{selectedBatch.leads_inserted_count}</p>
+                        </div>
+
+                        <div className="h-10 w-px bg-slate-100 dark:bg-slate-800 mx-2"></div>
+
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Sync Status</p>
+                          <p className={`text-base font-bold leading-tight mt-1 ${selectedBatch.status === 'SUCCESS' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                            {selectedBatch.status === 'SUCCESS' ? 'Completed Successfully' : 'Encountered Errors'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
+
                     <div className="flex-1 overflow-auto bg-white dark:bg-slate-950 p-4">
                       {viewLoading ? (
                         <div className="flex items-center justify-center h-full">
                           <RefreshCw className="w-10 h-10 text-indigo-500 animate-spin" />
                         </div>
-                      ) : (
+                      ) : viewData.length > 0 ? (
                         <div className="rounded-2xl border-2 border-slate-50 dark:border-slate-800 overflow-hidden shadow-inner">
-                          <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-800">
-                              <tr>
-                                {Object.keys(viewData[0] || {}).filter(k => !k.startsWith('_')).map(key => (
-                                  <th key={key} className="px-5 py-4 font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{key}</th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                              {viewData.map((row, i) => (
-                                <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800 transition-colors">
-                                  {Object.keys(row).filter(k => !k.startsWith('_')).map(key => (
-                                    <td key={key} className="px-5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">{row[key]}</td>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                              <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-800">
+                                <tr>
+                                  {Object.keys(viewData[0] || {}).filter(k => !k.startsWith('_')).map(key => (
+                                    <th key={key} className="px-5 py-4 font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 whitespace-nowrap">{key}</th>
                                   ))}
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                                {viewData.map((row, i) => (
+                                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800 transition-colors">
+                                    {Object.keys(row).filter(k => !k.startsWith('_')).map(key => (
+                                      <td key={key} className="px-5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400 max-w-[200px] truncate" title={row[key]}>{row[key]}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-60">
+                          <Database className="w-12 h-12 text-slate-300 dark:text-slate-600" />
+                          <p className="text-slate-500 dark:text-slate-400 font-medium">No new records were added in this specific batch.<br />(Or data was not retrievable)</p>
                         </div>
                       )}
                     </div>
