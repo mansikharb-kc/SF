@@ -122,7 +122,10 @@ router.get('/leads', async (req, res) => {
         if (error.code === '42P01') { // undefined_table
             return res.json({ leads: [], total: 0 });
         }
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: error.message,
+            stack: error.stack
+        });
     }
 });
 
