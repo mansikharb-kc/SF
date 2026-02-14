@@ -57,6 +57,12 @@ app.get('/api/debug-db', async (req, res) => {
     }
 });
 
+app.get('/api/env-keys', (req, res) => {
+    res.json(Object.keys(process.env).filter(k =>
+        k.includes('DB') || k.includes('URL') || k.includes('ZOHO') || k.includes('GOOGLE')
+    ));
+});
+
 app.get('/api/config', (req, res) => {
     res.json({
         primaryAdminEmail: process.env.PRIMARY_ADMIN_EMAIL || 'mansikharb.kc@gmail.com'
