@@ -1,11 +1,11 @@
 const { Pool } = require('pg');
-const url = require('url'); // Using the legacy url module (very stable, no TypeError: Invalid URL)
+const url = require('url');
 require('dotenv').config();
 
 function getPoolConfig() {
     let dbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '');
 
-    // Isolation to prevent PG auto-collision
+    // Isolation
     const originalUrl = process.env.DATABASE_URL;
     delete process.env.DATABASE_URL;
 
@@ -18,20 +18,34 @@ function getPoolConfig() {
             const parsed = url.parse(dbUrl);
             const auth = (parsed.auth || '').split(':');
 
-            return {
-                ...config,
-                user: auth[0],
-                password: decodeURIComponent(auth[1] || ''),
-                host: parsed.hostname,
-                port: parsed.port || 5432,
-                database: (parsed.pathname || '/').substring(1)
-            };
+            if (parsed.hostname) {
+                return {
+                    ...config,
+                    user: auth[0],
+                    password: decodeURIComponent(auth[1] || ''),
+                    host: parsed.hostname,
+                    port: parseInt(parsed.port) || 5432,
+                    database: (parsed.pathname || '/').substring(1)
+                };
+            }
         } catch (e) {
-            console.error('❌ Legacy URL parse failed:', e.message);
+            console.error('❌ Legacy parse failed:', e.message);
         }
     }
 
-    process.env.DATABASE_URL = originalUrl;
+    // Try individual vars
+    if (process.env.DB_HOST) {
+        return {
+            ...config,
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            port: parseInt(process.env.DB_PORT) || 5432,
+            database: process.env.DB_NAME
+        };
+    }
+
+    console.error('❌ NO VALID DB CONFIG FOUND');
     return config;
 }
 
