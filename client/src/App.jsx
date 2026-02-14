@@ -1441,12 +1441,18 @@ function App() {
                       {allLeads.map((lead) => {
                         // Dynamic lookups
                         const f = (p) => {
-                          const k = Object.keys(lead).find(x => p.some(s => x.toLowerCase().includes(s.toLowerCase())));
-                          return k ? lead[k] : null;
+                          const matchingKeys = Object.keys(lead).filter(x => p.some(s => x.toLowerCase().includes(s.toLowerCase())));
+                          for (const k of matchingKeys) {
+                            if (lead[k] !== null && lead[k] !== undefined && String(lead[k]).trim() !== '') {
+                              return lead[k];
+                            }
+                          }
+                          return null;
                         };
                         const n = f(['full_name', 'name', 'contact']);
                         const e = f(['email', 'mail']);
-                        const p = f(['phone', 'mobile']);
+                        const pRaw = f(['phone', 'mobile']);
+                        const p = pRaw ? String(pRaw).replace(/^p:/i, '') : null;
                         const c = f(['company', 'brand', 'firm']);
                         const city = f(['city', 'distt', 'dist']);
                         const camp = lead.campaign_name || lead.form_name || 'Generic';
