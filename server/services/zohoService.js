@@ -120,17 +120,20 @@ const generateTokens = async (grantToken) => {
 
         if (!refresh_token) {
             console.warn('⚠️ No refresh token received. Zoho only sends this on the first consent.');
-            throw new Error('RE_AUTH_REQUIRED: Refresh token was not sent by Zoho. This usually happens if the app was already authorized. Please try again using the new authorization link provided.');
+            // We allow proceeding if we at least got an access token, but refresh won't work later
         }
 
         const now = new Date();
         const expiresAt = new Date(now.getTime() + (expires_in * 1000));
 
+        // Use returned api_domain or fallback to configured one
+        const finalApiDomain = api_domain || API_URL;
+
         // Clear old config and insert new
         await db.query('TRUNCATE TABLE "zoho_config"');
         await db.query(
             'INSERT INTO "zoho_config" (access_token, refresh_token, expires_at, api_domain) VALUES ($1, $2, $3, $4)',
-            [access_token, refresh_token, expiresAt, api_domain]
+            [access_token, refresh_token, expiresAt, finalApiDomain]
         );
 
         return { success: true };
@@ -139,6 +142,19 @@ const generateTokens = async (grantToken) => {
         console.error('❌ Generate Tokens Error:', error.response?.data || error.message);
         throw error;
     }
+};
+
+/**
+ * Generate Authorization URL
+ */
+const getAuthUrl = () => {
+    const scopes = [
+        'ZohoCRM.modules.leads.ALL',
+        'ZohoCRM.settings.ALL',
+        'ZohoCRM.users.ALL'
+    ].join(',');
+
+    return `${ACCOUNTS_URL}/oauth/v2/auth?scope=${scopes}&client_id=${CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${REDIRECT_URI}&prompt=consent`;
 };
 
 /**
@@ -314,5 +330,6 @@ module.exports = {
     generateTokens,
     getAccessToken,
     mapLeadData,
-    deleteLeadFromZoho
+    deleteLeadFromZoho,
+    getAuthUrl
 };

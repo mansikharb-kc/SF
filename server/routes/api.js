@@ -361,8 +361,12 @@ router.post('/login', async (req, res) => {
 });
 
 // --- ZOHO CRM INTEGRATION ---
+const { generateTokens, getAccessToken, deleteLeadFromZoho, getAuthUrl } = require('../services/zohoService');
 
-const { generateTokens, getAccessToken, deleteLeadFromZoho } = require('../services/zohoService');
+// 0. Get Auth URL for Connection
+router.get('/zoho/auth-url', (req, res) => {
+    res.json({ url: getAuthUrl() });
+});
 
 // 1. Generate Tokens (One-time Setup)
 router.post('/zoho/auth', async (req, res) => {

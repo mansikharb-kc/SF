@@ -58,6 +58,18 @@ function App() {
     }
   };
 
+  const handleConnectZoho = async () => {
+    try {
+      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/auth-url`);
+      if (data.url) {
+        // Open Zoho auth in a new window/popup
+        window.open(data.url, 'ZohoAuth', 'width=600,height=700');
+      }
+    } catch (e) {
+      alert('Failed to get connection URL: ' + e.message);
+    }
+  };
+
   const fetchZohoData = async () => {
     setZohoLoading(true);
     try {
@@ -1086,11 +1098,21 @@ function App() {
                     </div>
                     Zoho CRM Batch Export
                   </h2>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${zohoConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${zohoConnected ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {zohoConnected ? 'CRM Connected & Online' : 'CRM Disconnected'}
-                    </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${zohoConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${zohoConnected ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {zohoConnected ? 'CRM Connected & Online' : 'CRM Disconnected'}
+                      </span>
+                    </div>
+                    {!zohoConnected && (
+                      <button
+                        onClick={handleConnectZoho}
+                        className="px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-wider rounded-lg border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                      >
+                        Setup Connection
+                      </button>
+                    )}
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 mt-2">
                     Review and push pending leads in controlled batches of 20 records for maximum reliability.
