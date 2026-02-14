@@ -1,59 +1,88 @@
 const { Pool } = require('pg');
+const parse = require('pg-connection-string').parse;
 require('dotenv').config();
 
+/**
+ * Super Robust Database Configuration
+ * Avoids passing 'connectionString' to Pg Pool to prevent internal 'Invalid URL' errors.
+ */
 function getPoolConfig() {
-    // 1. Try individual components FIRST (Self-managed or explicit config)
-    if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD) {
+    const config = {
+        ssl: { rejectUnauthorized: false }
+    };
+
+    // 1. Try individual environment variables first
+    if (process.env.DB_HOST && process.env.DB_USER) {
         console.log('🔧 Using individual DB components from environment');
         return {
+            ...config,
             host: process.env.DB_HOST,
-            port: process.env.DB_PORT || 5432,
+            port: parseInt(process.env.DB_PORT) || 5432,
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME,
-            ssl: { rejectUnauthorized: false }
+            database: process.env.DB_NAME
         };
     }
 
-    // 2. Try parsing DATABASE_URL manually as a fallback
+    // 2. Try parsing DATABASE_URL
     let dbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '');
+
     if (dbUrl.includes('://')) {
-        console.log('📡 Attempting to parse DATABASE_URL manually...');
+        console.log('📡 Decomposing DATABASE_URL...');
         try {
-            // Extremely permissive regex for postgresql://user:pass@host:port/dbname
-            const parts = dbUrl.match(/^(?:postgres|postgresql):\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/);
-            if (parts) {
+            // Use the standard parser first
+            const parsed = parse(dbUrl);
+            if (parsed.host) {
+                console.log('✅ Successfully parsed URL with pg-connection-string');
                 return {
-                    user: parts[1],
-                    password: decodeURIComponent(parts[2]),
-                    host: parts[3],
-                    port: parseInt(parts[4]) || 5432,
-                    database: parts[5],
-                    ssl: { rejectUnauthorized: false }
+                    ...config,
+                    host: parsed.host,
+                    port: parsed.port || 5432,
+                    user: parsed.user,
+                    password: parsed.password,
+                    database: parsed.database
                 };
             }
         } catch (e) {
-            console.error('❌ Manual DB URL parse failed:', e.message);
+            console.warn('⚠️ pg-connection-string failed, trying manual regex...', e.message);
         }
 
-        // Final fallback: Let pg-connection-string try (might throw Invalid URL)
-        return {
-            connectionString: dbUrl,
-            ssl: { rejectUnauthorized: false }
-        };
+        // Fallback to manual regex if the library fails or returns no host
+        try {
+            const regex = /^(?:postgres|postgresql):\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/;
+            const match = dbUrl.match(regex);
+            if (match) {
+                console.log('✅ Successfully parsed URL with manual regex');
+                return {
+                    ...config,
+                    user: match[1],
+                    password: decodeURIComponent(match[2]),
+                    host: match[3],
+                    port: parseInt(match[4]) || 5432,
+                    database: match[5]
+                };
+            }
+        } catch (e) {
+            console.error('❌ Manual regex parse failed:', e.message);
+        }
     }
 
-    return {
-        ssl: { rejectUnauthorized: false }
-    };
+    console.error('❌ Could not find valid database configuration');
+    return config;
 }
 
-const pool = new Pool(getPoolConfig());
+const poolConfig = getPoolConfig();
+// Debug (safe parts)
+if (poolConfig.host) {
+    console.log(`📡 Pool initialized for host: ${poolConfig.host}, DB: ${poolConfig.database}`);
+}
+
+const pool = new Pool(poolConfig);
 
 async function initDB() {
     try {
         const client = await pool.connect();
-        console.log(`✅ Database connection established`);
+        console.log(`✅ Database connection verified`);
         client.release();
     } catch (error) {
         console.error('❌ Database connection error:', error.message);
