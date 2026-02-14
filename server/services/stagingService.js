@@ -28,9 +28,19 @@ const syncToCrmStaging = async () => {
         const lastName = findValue(['last_name', 'lname', 'surname']) || lead.full_name || 'Unknown';
         const company = findValue(['company', 'brand', 'firm']) || lead.brand_name || null;
         const email = findValue(['email', 'mail']);
-        const phone = findValue(['phone', 'mobile']);
 
-        const cleanPhone = phone ? phone.replace(/\D/g, '') : null;
+        // Revised Phone Extraction
+        const phoneRaw = (() => {
+            const keywords = ['phone', 'mobile'];
+            const matchingKeys = Object.keys(lead).filter(k => keywords.some(kw => k.toLowerCase().includes(kw.toLowerCase())));
+            for (const k of matchingKeys) {
+                if (lead[k] && String(lead[k]).trim() !== '') return lead[k];
+            }
+            return null;
+        })();
+
+        // Clean phone: Remove 'p:' and non-numeric chars but keep +
+        const cleanPhone = phoneRaw ? String(phoneRaw).replace(/^p:/i, '').replace(/[^\d+]/g, '') : null;
 
         try {
             await db.query(`
