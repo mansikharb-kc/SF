@@ -3,9 +3,19 @@ const url = require('url');
 require('dotenv').config();
 
 function getPoolConfig() {
-    const dbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '');
+    const rawUrl = process.env.DATABASE_URL || '';
+    let dbUrl = rawUrl.trim().replace(/^["']|["']$/g, '');
 
-    // Isolation to prevent PG auto-collision
+    // DEBUG LOGGING (Censored)
+    console.log('--- DB CONFIG DEBUG ---');
+    console.log('Raw URL Length:', rawUrl.length);
+    console.log('Clean URL Length:', dbUrl.length);
+    if (dbUrl.includes('://')) {
+        const proto = dbUrl.split('://')[0];
+        console.log('Protocol detected:', proto);
+    }
+
+    // Isolation
     delete process.env.DATABASE_URL;
     delete process.env.PGDATABASEURL;
     delete process.env.PGDATABASE_URL;
@@ -14,12 +24,10 @@ function getPoolConfig() {
         ssl: { rejectUnauthorized: false }
     };
 
-    let result = null;
-
-    // A. Explicit Components (Render/Local Env)
+    // A. Explicit
     if (process.env.DB_HOST && process.env.DB_USER) {
-        console.log('📡 Using Explicit DB Environment Variables');
-        result = {
+        console.log('Using Explicit ENV vars');
+        return {
             ...config,
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
@@ -28,14 +36,17 @@ function getPoolConfig() {
             database: process.env.DB_NAME
         };
     }
-    // B. Decomposed URL
-    else if (dbUrl && dbUrl.includes('://')) {
-        console.log('📡 Using Decomposed DATABASE_URL');
+
+    // B. Decompose
+    if (dbUrl && dbUrl.includes('://')) {
         try {
             const parsed = url.parse(dbUrl);
-            const auth = (parsed.auth || '').split(':');
             if (parsed.hostname) {
-                result = {
+                console.log('Decomposed Hostname:', parsed.hostname);
+                console.log('Decomposed Database:', (parsed.pathname || '/').substring(1));
+
+                const auth = (parsed.auth || '').split(':');
+                return {
                     ...config,
                     user: auth[0],
                     password: decodeURIComponent(auth[1] || ''),
@@ -43,19 +54,16 @@ function getPoolConfig() {
                     port: parseInt(parsed.port) || 5432,
                     database: (parsed.pathname || '/').substring(1)
                 };
+            } else {
+                console.log('❌ url.parse found NO hostname');
             }
         } catch (e) {
-            console.error('❌ Manual URL parse failed:', e.message);
+            console.error('❌ url.parse error:', e.message);
         }
     }
 
-    if (!result || !result.host) {
-        console.error('❌ NO VALID DB HOST FOUND IN CONFIG');
-        return config; // Will default to localhost/postgres
-    }
-
-    console.log(`✅ Final Config Host: ${result.host}, User: ${result.user}`);
-    return result;
+    console.error('❌ FALLING BACK TO DEFAULT (localhost)');
+    return config;
 }
 
 const pool = new Pool(getPoolConfig());
