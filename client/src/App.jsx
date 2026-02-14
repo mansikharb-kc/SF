@@ -1029,60 +1029,6 @@ function App() {
                 )}
               </section>
             </div>
-
-            {/* Maintenance Panels */}
-            <div className="grid md:grid-cols-2 gap-8 mt-8">
-              <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
-                <h2 className="text-xl font-bold mb-6 text-red-600 dark:text-red-400 flex items-center gap-3">
-                  <Trash2 className="w-6 h-6" />
-                  Registry Maintenance
-                </h2>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2 ml-1">Archive ID (Sheet ID)</label>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <input
-                        type="text"
-                        value={deleteInputId}
-                        onChange={(e) => setDeleteInputId(e.target.value)}
-                        placeholder="EX: 1234567-890"
-                        className="flex-1 px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:border-red-500 dark:focus:border-red-400 focus:bg-white dark:focus:bg-slate-800 transition-all font-mono dark:text-white"
-                      />
-                      <button
-                        onClick={handleManualDelete}
-                        disabled={loading}
-                        className="px-6 py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-bold hover:bg-red-600 dark:hover:bg-red-500 transition-colors shadow-lg active:scale-95 disabled:opacity-50"
-                      >
-                        Remove Record
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                    Deleting a record here will remove it from the database and prevent it from being re-synced in the future. Use this to permanently filter out bad data.
-                  </p>
-                </div>
-              </section>
-
-              <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
-                <h2 className="text-xl font-bold mb-6 text-indigo-600 dark:text-indigo-400 flex items-center gap-3">
-                  <HelpCircle className="w-6 h-6" />
-                  Sync Configuration
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tighter">Auto-Sync Interval</span>
-                    <span className="text-xs bg-indigo-600 text-white px-3 py-1 rounded-full font-bold shadow-sm shadow-indigo-200">30 Minutes</span>
-                  </div>
-                  <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tighter">Source Identity</span>
-                    <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400">1ZOm...ksEZiY</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center px-4">
-                    The system pulse is managed by GitHub Actions workflows for maximum reliability and uptime.
-                  </p>
-                </div>
-              </section>
-            </div>
           </div>
         )}
 
@@ -1593,6 +1539,62 @@ function App() {
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Maintenance & Configuration Panels (Visible everywhere) */}
+        {(activeView === 'google-import' || activeView === 'zoho-export') && (
+          <div className="grid md:grid-cols-2 gap-8 mt-12 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+              <h2 className="text-xl font-bold mb-6 text-red-600 dark:text-red-400 flex items-center gap-3">
+                <Trash2 className="w-6 h-6" />
+                Registry Maintenance
+              </h2>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2 ml-1">Archive ID (Sheet ID)</label>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={deleteInputId}
+                      onChange={(e) => setDeleteInputId(e.target.value)}
+                      placeholder="EX: 1234567-890"
+                      className="flex-1 px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:border-red-500 dark:focus:border-red-400 focus:bg-white dark:focus:bg-slate-800 transition-all font-mono dark:text-white"
+                    />
+                    <button
+                      onClick={handleManualDelete}
+                      disabled={loading}
+                      className="px-6 py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-bold hover:bg-red-600 dark:hover:bg-red-500 transition-colors shadow-lg active:scale-95 disabled:opacity-50"
+                    >
+                      Remove Record
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                  Deleting a record here will remove it from the database and prevent it from being re-synced in the future. Use this to permanently filter out bad data.
+                </p>
+              </div>
+            </section>
+
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+              <h2 className="text-xl font-bold mb-6 text-indigo-600 dark:text-indigo-400 flex items-center gap-3">
+                <HelpCircle className="w-6 h-6" />
+                Sync Configuration
+              </h2>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tighter">Auto-Sync Interval</span>
+                  <span className="text-xs bg-indigo-600 text-white px-3 py-1 rounded-full font-bold shadow-sm shadow-indigo-200">30 Minutes</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tighter">Source Identity</span>
+                  <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400">Arch...NDIA 2</span>
+                </div>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center px-4">
+                  The system pulse is managed by GitHub Actions workflows for maximum reliability and uptime.
+                </p>
               </div>
             </section>
           </div>
