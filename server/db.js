@@ -2,12 +2,9 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // Clean and validate the database connection string
-let dbUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : null;
-if (dbUrl && (dbUrl.startsWith('"') || dbUrl.startsWith("'"))) {
-    dbUrl = dbUrl.substring(1, dbUrl.length - 1);
-}
+let dbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '');
 
-const poolConfig = dbUrl ? {
+const poolConfig = (dbUrl && dbUrl.includes('://')) ? {
     connectionString: dbUrl,
     ssl: { rejectUnauthorized: false }
 } : {
