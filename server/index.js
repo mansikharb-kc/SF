@@ -53,7 +53,7 @@ app.get('/api/debug-db', async (req, res) => {
         const { rows } = await db.query('SELECT 1 as connected');
         res.json({ success: true, rows });
     } catch (e) {
-        res.status(500).json({ error: e.message, url: (process.env.DATABASE_URL || 'none').substring(0, 15) });
+        res.status(500).json({ error: e.message, stack: e.stack });
     }
 });
 
@@ -80,6 +80,16 @@ app.get(/^(?!\/api).+/, (req, res) => {
 // 7. Safe 404 Handler for API
 app.use('/api', (req, res) => {
     res.status(404).json({ error: "API Route not found" });
+});
+
+// 8. Global Error Handler
+app.use((err, req, res, next) => {
+    console.error('🔥 Global Error:', err);
+    res.status(500).json({
+        error: err.message,
+        stack: err.stack,
+        path: req.path
+    });
 });
 
 // 🚀 CRITICAL: Bind to port IMMEDIATELY for Render
