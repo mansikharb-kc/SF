@@ -28,7 +28,7 @@ function App() {
   const [leadsCategory, setLeadsCategory] = useState('all');
   const [leadsPage, setLeadsPage] = useState(0);
   const [leadsLimit] = useState(50);
-  const [activeView, setActiveView] = useState('google-import'); // 'google-import', 'zoho-export', 'leads'
+  const [activeView, setActiveView] = useState('leads'); // 'google-import', 'zoho-export', 'leads'
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('sf_theme') === 'dark');
 
   // --- ZOHO LOGIC START ---
