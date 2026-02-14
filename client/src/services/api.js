@@ -5,7 +5,7 @@ const envBase = import.meta.env.VITE_API_BASE_URL;
 
 // If env variable is missing, we assume "All-in-One" mode (serving from the same domain)
 // In production, we use the current domain. In development, we use localhost:5000.
-const apiBase = envBase || (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
+export const apiBase = envBase || (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 
 const API = axios.create({
     baseURL: apiBase,

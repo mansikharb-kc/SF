@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Share2, Clock, RefreshCw, ChevronRight, CheckCircle, Database, Trash2, HelpCircle, X, Download, Filter, Layout, Search, Moon, Sun, ArrowRight, FileText, Globe, Cloud, RotateCcw } from 'lucide-react';
-import { syncSheet, getHistory, getData, deleteRecord } from './services/api';
+import { syncSheet, getHistory, getData, deleteRecord, apiBase } from './services/api';
 import { format } from 'date-fns';
 import axios from 'axios';
 
@@ -51,7 +51,7 @@ function App() {
 
   const checkZohoStatus = async () => {
     try {
-      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/status`);
+      const { data } = await axios.get(`${apiBase}/api/zoho/status`);
       setZohoConnected(data.connected);
     } catch (e) {
       setZohoConnected(false);
@@ -60,7 +60,7 @@ function App() {
 
   const handleConnectZoho = async () => {
     try {
-      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/auth-url`);
+      const { data } = await axios.get(`${apiBase}/api/zoho/auth-url`);
       if (data.url) {
         // Open Zoho auth in a new window/popup
         window.open(data.url, 'ZohoAuth', 'width=600,height=700');
@@ -73,7 +73,7 @@ function App() {
   const fetchZohoData = async () => {
     setZohoLoading(true);
     try {
-      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/leads?status=Pending&limit=1000`);
+      const { data } = await axios.get(`${apiBase}/api/zoho/leads?status=Pending&limit=1000`);
 
       let leads = data.leads || [];
       // Sort by ID DESC (Newest on top)
@@ -94,7 +94,7 @@ function App() {
   const fetchZohoHistory = async () => {
     setZohoHistoryLoading(true);
     try {
-      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/leads?status=Success&limit=2000`);
+      const { data } = await axios.get(`${apiBase}/api/zoho/leads?status=Success&limit=2000`);
       setZohoHistory(data.leads || []);
       if (data.stats) setZohoStats(data.stats);
     } catch (e) {
@@ -113,7 +113,7 @@ function App() {
       const batchToSync = zohoLeads.slice(start, end);
       const leadIds = batchToSync.map(l => l.id);
 
-      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/sync`, { leadIds });
+      const { data } = await axios.post(`${apiBase}/api/zoho/sync`, { leadIds });
 
       const successCount = data.results.filter(r => r.status === 'SUCCESS').length;
       const failCount = data.results.length - successCount;
@@ -131,7 +131,7 @@ function App() {
 
   const handleZohoSyncSingle = async (lead) => {
     try {
-      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/sync`, { leadIds: [lead.id] });
+      const { data } = await axios.post(`${apiBase}/api/zoho/sync`, { leadIds: [lead.id] });
       if (data.results[0].status === 'SUCCESS') {
         alert('Successfully Done!');
         fetchZohoData();
@@ -147,7 +147,7 @@ function App() {
 
   const handleZohoUndo = async (lead) => {
     try {
-      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/undo`, { leadId: lead.id });
+      const { data } = await axios.post(`${apiBase}/api/zoho/undo`, { leadId: lead.id });
       alert(data.message || 'Successfully Reverted!');
       fetchZohoData();
       fetchZohoHistory();
@@ -162,7 +162,7 @@ function App() {
   const handleStageLeads = async () => {
     setStagingProcessing(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/crm-sync/stage`);
+      await axios.post(`${apiBase}/api/crm-sync/stage`);
       await fetchZohoData();
       alert('New leads identified and staged for review!');
     } catch (e) {
@@ -175,7 +175,7 @@ function App() {
   const handlePushAllToZoho = async () => {
     setStagingProcessing(true);
     try {
-      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/crm-sync/process`);
+      const { data } = await axios.post(`${apiBase}/api/crm-sync/process`);
       const success = data.results.filter(r => r.status === 'SUCCESS').length;
       alert(`Successfully Done! Bulk Sync Completed: ${success} Success, ${data.results.length - success} Failed.`);
       await fetchZohoData();
