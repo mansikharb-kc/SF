@@ -43,8 +43,8 @@ app.get('/cron-sync', async (req, res) => {
 });
 
 // 4. API Routes
-app.use('/api', apiRoutes);
 app.use('/api/debug', require('./routes/debug'));
+app.use('/api', apiRoutes);
 
 // 5. Config Info (Helper for Frontend)
 app.get('/api/config', (req, res) => {
