@@ -79,7 +79,7 @@ router.get('/leads', async (req, res) => {
             switch (category) {
                 case 'city': searchableCols = ['"city"']; break;
                 case 'email': searchableCols = ['"email"']; break;
-                case 'phone': searchableCols = ['"phone_number"']; break;
+                case 'phone': searchableCols = ['"phone"']; break;
                 case 'campaign': searchableCols = ['"campaign_name"']; break;
                 case 'brand': searchableCols = ['"brand_name"']; break;
                 case 'name': searchableCols = ['"full_name"']; break;
@@ -89,9 +89,10 @@ router.get('/leads', async (req, res) => {
                         '"full_name"',
                         '"email"',
                         '"city"',
-                        '"phone_number"',
+                        '"phone"',
                         '"sheet_id"',
                         '"brand_name"',
+                        '"company_name"',
                         '"campaign_name"',
                         '"form_name"'
                     ];
