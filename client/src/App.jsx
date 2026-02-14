@@ -242,10 +242,11 @@ function App() {
     try {
       const { getLeads } = await import('./services/api');
       const data = await getLeads(leadsSearch, leadsCategory, leadsLimit, leadsPage * leadsLimit);
-      setAllLeads(data.leads);
-      setTotalLeads(data.total);
+      setAllLeads(Array.isArray(data.leads) ? data.leads : []);
+      setTotalLeads(data.total || 0);
     } catch (error) {
       console.error("Failed to load leads", error);
+      setAllLeads([]);
     } finally {
       setLeadsLoading(false);
     }
@@ -1346,10 +1347,10 @@ function App() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-                              <Share2 className="w-3 h-3" /> {lead.source_id ? lead.source_id.slice(0, 15) : 'N/A'}...
+                              <Share2 className="w-3 h-3" /> {lead.source_id ? String(lead.source_id).slice(0, 15) : 'N/A'}...
                             </div>
                             <div className="text-[9px] text-slate-400 mt-0.5">
-                              Synced {lead.crm_insert_time ? format(new Date(lead.crm_insert_time), 'MMM d, h:mm a') : 'Recently'}
+                              Synced {lead.crm_insert_time ? (isNaN(new Date(lead.crm_insert_time)) ? 'Recently' : format(new Date(lead.crm_insert_time), 'MMM d, h:mm a')) : 'Recently'}
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right pr-8">
@@ -1492,7 +1493,7 @@ function App() {
                                 <div>
                                   <div className="font-bold text-slate-900 dark:text-slate-200 text-base">{n || 'Unidentified'}</div>
                                   <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex items-center gap-1">
-                                    <Share2 className="w-2.5 h-2.5" /> {lead.sheet_id.slice(0, 12)}
+                                    <Share2 className="w-2.5 h-2.5" /> {(lead.sheet_id || 'no-id').toString().slice(0, 12)}
                                   </div>
                                 </div>
                               </div>
@@ -1522,7 +1523,9 @@ function App() {
                             <td className="px-6 py-5">
                               <div className="max-w-[180px] truncate" title={camp}>
                                 <div className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-0.5 truncate">{camp}</div>
-                                <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">{format(new Date(lead._created_at), 'MMM d, yyyy')}</div>
+                                <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
+                                  {lead._created_at ? format(new Date(lead._created_at), 'MMM d, yyyy') : 'No Date'}
+                                </div>
                               </div>
                             </td>
                             <td className="px-6 py-5 text-right pr-8">
