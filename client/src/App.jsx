@@ -1256,7 +1256,7 @@ function App() {
                                   </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                  <div className="font-medium text-slate-700 dark:text-slate-300">{lead.company || 'Individual'}</div>
+                                  <div className="font-medium text-slate-700 dark:text-slate-300">{lead.company || '-'}</div>
                                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {lead.source_id.slice(0, 10)}...</div>
                                   {lead.error_message && (
                                     <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/10 px-2 py-1 rounded inline-block mt-1">Error: {lead.error_message}</div>
@@ -1343,7 +1343,7 @@ function App() {
                             <div className="text-[10px] text-slate-400 font-mono italic">{lead.email || 'no-email'}</div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{lead.company || 'Individual'}</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{lead.company || '-'}</div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
@@ -1510,7 +1510,7 @@ function App() {
                             </td>
                             <td className="px-6 py-5">
                               <div className="inline-flex flex-col">
-                                <span className="font-bold text-slate-800 dark:text-slate-200">{c || 'Standalone'}</span>
+                                <span className={`font-bold ${c ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>{c || '-'}</span>
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Platform ID: {lead.platform || 'N/A'}</span>
                               </div>
                             </td>

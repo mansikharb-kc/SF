@@ -26,7 +26,7 @@ const syncToCrmStaging = async () => {
 
         const firstName = findValue(['first_name', 'fname']) || '';
         const lastName = findValue(['last_name', 'lname', 'surname']) || lead.full_name || 'Unknown';
-        const company = findValue(['company', 'brand', 'firm']) || lead.brand_name || 'Individual';
+        const company = findValue(['company', 'brand', 'firm']) || lead.brand_name || null;
         const email = findValue(['email', 'mail']);
         const phone = findValue(['phone', 'mobile']);
 
@@ -63,9 +63,10 @@ const syncToZoho = async () => {
         if (pendingLeads.length === 0) return [];
 
         const payloadData = pendingLeads.map(lead => ({
-            Last_Name: lead.last_name,
-            First_Name: lead.first_name,
-            Company: lead.company,
+            Last_Name: lead.last_name || 'Unknown',
+            First_Name: lead.first_name || '',
+            // Zoho requires Company. If NULL in DB, we use Full Name or 'N/A'
+            Company: lead.company || (lead.first_name && lead.last_name ? `${lead.first_name} ${lead.last_name}` : lead.last_name || 'Individual'),
             Email: lead.email,
             Phone: lead.phone,
             Description: `Imported via AntiGravity Staging. Source ID: ${lead.source_id}`
