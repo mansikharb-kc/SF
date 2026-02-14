@@ -47,6 +47,16 @@ app.use('/api/debug', require('./routes/debug'));
 app.use('/api', apiRoutes);
 
 // 5. Config Info (Helper for Frontend)
+app.get('/api/debug-db', async (req, res) => {
+    const { db } = require('./db');
+    try {
+        const { rows } = await db.query('SELECT 1 as connected');
+        res.json({ success: true, rows });
+    } catch (e) {
+        res.status(500).json({ error: e.message, url: (process.env.DATABASE_URL || 'none').substring(0, 15) });
+    }
+});
+
 app.get('/api/config', (req, res) => {
     res.json({
         primaryAdminEmail: process.env.PRIMARY_ADMIN_EMAIL || 'mansikharb.kc@gmail.com'
