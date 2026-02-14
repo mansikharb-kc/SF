@@ -1,28 +1,37 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-/**
- * Robust Database Configuration
- * Handles malformed strings, extra quotes, and environment-specific formatting.
- */
-
 function getPoolConfig() {
-    let dbUrl = (process.env.DATABASE_URL || '').trim();
+    let dbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '');
 
-    // Remove wrapping quotes if they exist
-    dbUrl = dbUrl.replace(/^["']|["']$/g, '');
+    // If it looks like a URL, try to parse it manually to avoid "Invalid URL" errors from pg
+    if (dbUrl.includes('://')) {
+        try {
+            // Regex to extract parts: postgresql://user:pass@host:port/db
+            const regex = /^(?:postgres|postgresql):\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/;
+            const match = dbUrl.match(regex);
 
-    // If it's a valid Postgres URL
-    if (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://')) {
-        console.log('📡 Using DATABASE_URL for connection');
+            if (match) {
+                console.log('📡 Using manually parsed DATABASE_URL');
+                return {
+                    user: match[1],
+                    password: decodeURIComponent(match[2]),
+                    host: match[3],
+                    port: match[4] || 5432,
+                    database: match[5],
+                    ssl: { rejectUnauthorized: false }
+                };
+            }
+        } catch (e) {
+            console.error('⚠️ Manual parse failed, falling back to connectionString');
+        }
+
         return {
             connectionString: dbUrl,
             ssl: { rejectUnauthorized: false }
         };
     }
 
-    // Fallback to individual components
-    console.log('🔧 Using individual DB components for connection');
     return {
         host: process.env.DB_HOST,
         port: process.env.DB_PORT,
@@ -33,12 +42,13 @@ function getPoolConfig() {
     };
 }
 
-const pool = new Pool(getPoolConfig());
+const poolConfig = getPoolConfig();
+const pool = new Pool(poolConfig);
 
 async function initDB() {
     try {
         const client = await pool.connect();
-        console.log(`✅ Connected to database: ${process.env.DB_NAME || 'Supabase/Neon'}`);
+        console.log(`✅ Connected to database successful`);
         client.release();
     } catch (error) {
         console.error('❌ Error connecting to database:', error.message);
