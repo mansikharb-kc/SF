@@ -254,6 +254,7 @@ function App() {
     try {
       const { getLeads } = await import('./services/api');
       const data = await getLeads(leadsSearch, leadsCategory, leadsLimit, leadsPage * leadsLimit);
+      console.log('Fetched Leads:', data);
       setAllLeads(Array.isArray(data.leads) ? data.leads : []);
       setTotalLeads(data.total || 0);
     } catch (error) {
@@ -792,7 +793,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeView === 'google-import' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-8">
             {/* Auto Sync Status */}
             <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800 p-8 transition-all hover:shadow-2xl">
               <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
@@ -1033,7 +1034,7 @@ function App() {
         )}
 
         {activeView === 'zoho-export' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-8">
             {/* Header */}
             <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -1346,7 +1347,7 @@ function App() {
         )}
 
         {activeView === 'leads' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-8">
             {/* Leads Search & Control Bar */}
             <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex items-center gap-4 w-full md:w-2/3">
@@ -1552,7 +1553,7 @@ function App() {
 
         {/* Maintenance & Configuration Panels (Visible everywhere) */}
         {(activeView === 'google-import' || activeView === 'zoho-export') && (
-          <div className="grid md:grid-cols-2 gap-8 mt-12 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+          <div className="grid md:grid-cols-2 gap-8 mt-12">
             <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
               <h2 className="text-xl font-bold mb-6 text-red-600 dark:text-red-400 flex items-center gap-3">
                 <Trash2 className="w-6 h-6" />
