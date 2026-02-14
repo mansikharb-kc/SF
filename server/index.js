@@ -48,12 +48,15 @@ app.use('/api', apiRoutes);
 
 // 5. Config Info (Helper for Frontend)
 app.get('/api/debug-db', async (req, res) => {
-    const { db } = require('./db');
+    const { db, getDebugInfo } = require('./db');
     try {
         const { rows } = await db.query('SELECT 1 as connected');
-        res.json({ success: true, rows });
+        res.json({ success: true, rows, debug: getDebugInfo() });
     } catch (e) {
-        res.status(500).json({ error: e.message, stack: e.stack });
+        res.status(500).json({
+            error: e.message,
+            debug: getDebugInfo ? getDebugInfo() : 'No debug info'
+        });
     }
 });
 
