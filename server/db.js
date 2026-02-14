@@ -1,19 +1,20 @@
 const { Pool } = require('pg');
-const parse = require('pg-connection-string').parse;
 require('dotenv').config();
 
 /**
- * Super Robust Database Configuration
- * Avoids passing 'connectionString' to Pg Pool to prevent internal 'Invalid URL' errors.
+ * Super Resilient Database Configuration
+ * Avoids any dependency on 'pg-connection-string' or internal 'new URL' calls.
+ * Manually decomposes DATABASE_URL using regex.
  */
 function getPoolConfig() {
     const config = {
         ssl: { rejectUnauthorized: false }
     };
 
-    // 1. Try individual environment variables first
+    let dbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '');
+
+    // Prioritize individual variables if present (best practice)
     if (process.env.DB_HOST && process.env.DB_USER) {
-        console.log('🔧 Using individual DB components from environment');
         return {
             ...config,
             host: process.env.DB_HOST,
@@ -24,35 +25,16 @@ function getPoolConfig() {
         };
     }
 
-    // 2. Try parsing DATABASE_URL
-    let dbUrl = (process.env.DATABASE_URL || '').trim().replace(/^["']|["']$/g, '');
-
+    // Decompose DATABASE_URL if present
     if (dbUrl.includes('://')) {
-        console.log('📡 Decomposing DATABASE_URL...');
+        console.log('📡 Manually decomposing DATABASE_URL to avoid crashes...');
         try {
-            // Use the standard parser first
-            const parsed = parse(dbUrl);
-            if (parsed.host) {
-                console.log('✅ Successfully parsed URL with pg-connection-string');
-                return {
-                    ...config,
-                    host: parsed.host,
-                    port: parsed.port || 5432,
-                    user: parsed.user,
-                    password: parsed.password,
-                    database: parsed.database
-                };
-            }
-        } catch (e) {
-            console.warn('⚠️ pg-connection-string failed, trying manual regex...', e.message);
-        }
+            // Regex to match: postgresql://user:password@host:port/database
+            // Handles encoded characters in user/pass
+            const match = dbUrl.match(/^(?:postgres|postgresql):\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?#\s]+)/);
 
-        // Fallback to manual regex if the library fails or returns no host
-        try {
-            const regex = /^(?:postgres|postgresql):\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/;
-            const match = dbUrl.match(regex);
             if (match) {
-                console.log('✅ Successfully parsed URL with manual regex');
+                console.log('✅ Manual URL decomposition successful');
                 return {
                     ...config,
                     user: match[1],
@@ -63,29 +45,32 @@ function getPoolConfig() {
                 };
             }
         } catch (e) {
-            console.error('❌ Manual regex parse failed:', e.message);
+            console.error('❌ Manual decomposition error:', e.message);
         }
     }
 
-    console.error('❌ Could not find valid database configuration');
+    // Last resort fallback (this might fail if pg tries to parse its own connectionString)
+    if (dbUrl) {
+        console.log('⚠️ Falling back to raw connectionString (risky)');
+        return {
+            connectionString: dbUrl,
+            ssl: { rejectUnauthorized: false }
+        };
+    }
+
+    console.error('❌ No database configuration found!');
     return config;
 }
 
-const poolConfig = getPoolConfig();
-// Debug (safe parts)
-if (poolConfig.host) {
-    console.log(`📡 Pool initialized for host: ${poolConfig.host}, DB: ${poolConfig.database}`);
-}
-
-const pool = new Pool(poolConfig);
+const pool = new Pool(getPoolConfig());
 
 async function initDB() {
     try {
         const client = await pool.connect();
-        console.log(`✅ Database connection verified`);
+        console.log(`✅ Database: Connected`);
         client.release();
     } catch (error) {
-        console.error('❌ Database connection error:', error.message);
+        console.error('❌ Database: Connection Error:', error.message);
     }
 }
 
