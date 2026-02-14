@@ -1,0 +1,11 @@
+Testing...
+❌ Error: The server does not support SSL connections
+Code: undefined
+Stack: Error: The server does not support SSL connections
+    at Socket.<anonymous> (C:\Users\LT13\Desktop\marketing\SF\server\node_modules\pg\lib\connection.js:75:37)
+    at Object.onceWrapper (node:events:623:26)
+    at Socket.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:559:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+    at Readable.push (node:internal/streams/readable:390:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)

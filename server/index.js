@@ -19,7 +19,7 @@ app.use(express.json());
 const apiRoutes = require('./routes/api');
 
 // 2. Health & Ping (Fast checks for Render)
-app.get('/', (req, res) => res.status(200).send('Backend is running 🚀'));
+app.get('/status', (req, res) => res.status(200).send('Backend is running 🚀'));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/ping', (req, res) => res.json({ pong: true }));
 

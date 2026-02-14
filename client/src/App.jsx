@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Database, Clock, Layout, FileText, ChevronRight, Trash2, HelpCircle, Download, Cloud, Share2, Search, Filter, Sun, Moon } from 'lucide-react';
+import { Share2, Clock, RefreshCw, ChevronRight, CheckCircle, Database, Trash2, HelpCircle, X, Download, Filter, Layout, Search, Moon, Sun, ArrowRight, FileText, Globe, Cloud, RotateCcw } from 'lucide-react';
 import { syncSheet, getHistory, getData, deleteRecord } from './services/api';
 import { format } from 'date-fns';
+import axios from 'axios';
 
 function App() {
   const [userEmail, setUserEmail] = useState(localStorage.getItem('sf_user_email') || '');
@@ -29,6 +30,150 @@ function App() {
   const [leadsLimit] = useState(50);
   const [activeView, setActiveView] = useState('google-import'); // 'google-import', 'zoho-export', 'leads'
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('sf_theme') === 'dark');
+
+  // --- ZOHO LOGIC START ---
+  const [zohoLeads, setZohoLeads] = useState([]);
+  const [zohoLoading, setZohoLoading] = useState(false);
+  const [selectedBatchIndex, setSelectedBatchIndex] = useState(null);
+  const [zohoSyncLoading, setZohoSyncLoading] = useState(false);
+  const [zohoConnected, setZohoConnected] = useState(false);
+  const [zohoHistory, setZohoHistory] = useState([]);
+  const [zohoHistoryLoading, setZohoHistoryLoading] = useState(false);
+  const [zohoStats, setZohoStats] = useState([]);
+
+  useEffect(() => {
+    if (activeView === 'zoho-export') {
+      fetchZohoData();
+      checkZohoStatus();
+      fetchZohoHistory();
+    }
+  }, [activeView]);
+
+  const checkZohoStatus = async () => {
+    try {
+      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/status`);
+      setZohoConnected(data.connected);
+    } catch (e) {
+      setZohoConnected(false);
+    }
+  };
+
+  const fetchZohoData = async () => {
+    setZohoLoading(true);
+    try {
+      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/leads?status=Pending&limit=1000`);
+
+      let leads = data.leads || [];
+      // Sort by ID DESC (Newest on top)
+      leads.sort((a, b) => b.id - a.id);
+
+      setZohoLeads(leads);
+      if (data.stats) setZohoStats(data.stats);
+      if (leads.length > 0 && selectedBatchIndex === null) {
+        setSelectedBatchIndex(0); // Auto-select first batch
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setZohoLoading(false);
+    }
+  };
+
+  const fetchZohoHistory = async () => {
+    setZohoHistoryLoading(true);
+    try {
+      const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/leads?status=Success&limit=2000`);
+      setZohoHistory(data.leads || []);
+      if (data.stats) setZohoStats(data.stats);
+    } catch (e) {
+      console.error("Failed to fetch Zoho history", e);
+    } finally {
+      setZohoHistoryLoading(false);
+    }
+  };
+
+  const handleZohoBatchSync = async (batchIndex) => {
+    setZohoSyncLoading(true);
+    try {
+      // Calculate slices
+      const start = batchIndex * 20;
+      const end = start + 20;
+      const batchToSync = zohoLeads.slice(start, end);
+      const leadIds = batchToSync.map(l => l.id);
+
+      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/sync`, { leadIds });
+
+      const successCount = data.results.filter(r => r.status === 'SUCCESS').length;
+      const failCount = data.results.length - successCount;
+
+      alert(`Successfully Done! Batch Sync Completed: ${successCount} Success, ${failCount} Failed.`);
+      fetchZohoData(); // Refresh list to remove synced items (as they are no longer PENDING)
+      fetchZohoHistory(); // Refresh history panel
+      setSelectedBatchIndex(0); // Reset to first batch
+    } catch (e) {
+      alert('Sync Failed: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setZohoSyncLoading(false);
+    }
+  };
+
+  const handleZohoSyncSingle = async (lead) => {
+    try {
+      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/sync`, { leadIds: [lead.id] });
+      if (data.results[0].status === 'SUCCESS') {
+        alert('Successfully Done!');
+        fetchZohoData();
+        fetchZohoHistory();
+      } else {
+        alert('Failed: ' + data.results[0].error);
+        fetchZohoData(); // Update to show error
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  };
+
+  const handleZohoUndo = async (lead) => {
+    try {
+      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/zoho/undo`, { leadId: lead.id });
+      alert(data.message || 'Successfully Reverted!');
+      fetchZohoData();
+      fetchZohoHistory();
+    } catch (e) {
+      alert('Undo Failed: ' + (e.response?.data?.error || e.message));
+    }
+  };
+  // --- ZOHO LOGIC END ---
+
+  const [stagingProcessing, setStagingProcessing] = useState(false);
+
+  const handleStageLeads = async () => {
+    setStagingProcessing(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/crm-sync/stage`);
+      await fetchZohoData();
+      alert('New leads identified and staged for review!');
+    } catch (e) {
+      alert('Staging failed: ' + e.message);
+    } finally {
+      setStagingProcessing(false);
+    }
+  };
+
+  const handlePushAllToZoho = async () => {
+    setStagingProcessing(true);
+    try {
+      const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/crm-sync/process`);
+      const success = data.results.filter(r => r.status === 'SUCCESS').length;
+      alert(`Successfully Done! Bulk Sync Completed: ${success} Success, ${data.results.length - success} Failed.`);
+      await fetchZohoData();
+      await fetchZohoHistory();
+    } catch (e) {
+      alert('Bulk Sync Failed: ' + e.message);
+    } finally {
+      setStagingProcessing(false);
+    }
+  };
 
   // Dark Mode Effect
   useEffect(() => {
@@ -929,40 +1074,303 @@ function App() {
         )}
 
         {activeView === 'zoho-export' && (
-          <div className="animate-in fade-in zoom-in duration-500">
-            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border-2 border-slate-100 dark:border-slate-800 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 rounded-full -mr-32 -mt-32"></div>
-              <div className="p-12 md:p-20 text-center space-y-8 relative">
-                <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] shadow-2xl shadow-indigo-300 dark:shadow-indigo-900/50 flex items-center justify-center mx-auto transform rotate-12">
-                  <Share2 className="w-12 h-12 text-white transform -rotate-12" />
-                </div>
-                <div className="space-y-3">
-                  <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Zoho Export Engine</h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-xl max-w-xl mx-auto font-medium">
-                    Seamlessly bridge your synchronization pipeline with your CRM workflows.
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2 flex items-center gap-3 dark:text-white">
+                    <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-xl">
+                      <Share2 className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    Zoho CRM Batch Export
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${zohoConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${zohoConnected ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {zohoConnected ? 'CRM Connected & Online' : 'CRM Disconnected'}
+                    </span>
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-400 mt-2">
+                    Review and push pending leads in controlled batches of 20 records for maximum reliability.
                   </p>
-                </div>
-                <div className="inline-flex items-center gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full font-bold border border-amber-200 dark:border-amber-900/50 animate-pulse">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></div>
-                  Coming Soon - Feature under Development
-                </div>
-                <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto pt-8">
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-2">
-                    <Download className="w-6 h-6 text-indigo-500" />
-                    <p className="font-bold text-slate-800 dark:text-slate-200">One-Click Export</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">Push synchronized leads directly to your Zoho CRM leads module.</p>
-                  </div>
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-2">
-                    <Filter className="w-6 h-6 text-indigo-500" />
-                    <p className="font-bold text-slate-800 dark:text-slate-200">Filtered Sync</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">Export only specific campaigns or cities based on your requirements.</p>
-                  </div>
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-2">
-                    <Layout className="w-6 h-6 text-indigo-500" />
-                    <p className="font-bold text-slate-800 dark:text-slate-200">Field Mapping</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">Custom map column names from your sheets to your Zoho database fields.</p>
+                  <div className="flex items-center gap-4 mt-4">
+                    {['Pending', 'Success', 'Failed'].map(status => {
+                      const count = zohoStats.find(s => s.status === status)?.count || 0;
+                      const label = status === 'Success' ? 'Total Pushed' : status;
+                      return (
+                        <div key={status} className="flex flex-col">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{label}</span>
+                          <span className={`text-sm font-bold ${status === 'Pending' ? 'text-amber-500' : status === 'Success' ? 'text-emerald-500' : 'text-red-600'}`}>
+                            {count.toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+                <div className="flex flex-wrap gap-4">
+                  <button
+                    onClick={handleStageLeads}
+                    disabled={zohoLoading || stagingProcessing}
+                    className="px-5 py-3 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2 shadow-sm"
+                  >
+                    {stagingProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4 text-indigo-500" />}
+                    Stage New Leads
+                  </button>
+                  <button
+                    onClick={handlePushAllToZoho}
+                    disabled={zohoLoading || stagingProcessing || zohoLeads.length === 0}
+                    className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {stagingProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cloud className="w-5 h-5" />}
+                    Bulk Sync (Next 100)
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Batch Distribution & Selection */}
+            <div className="grid lg:grid-cols-4 gap-8">
+              {/* Batch Selector */}
+              <section className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px]">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="font-black text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest">Select Batch</h3>
+                    <button onClick={fetchZohoData} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors">
+                      <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${zohoLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-white">{zohoLeads.length}</div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Pending Staged Leads</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50/20 dark:bg-slate-900/20">
+                  {zohoLeads.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-40">
+                      <Database className="w-12 h-12 text-slate-300" />
+                      <p className="text-sm font-bold text-slate-500">All caught up!<br />No leads pending staging.</p>
+                    </div>
+                  ) : (
+                    Array.from({ length: Math.ceil(zohoLeads.length / 20) }).map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedBatchIndex(idx)}
+                        className={`w-full p-4 rounded-2xl text-left border-2 transition-all flex justify-between items-center group relative overflow-hidden
+                                        ${selectedBatchIndex === idx
+                            ? 'bg-amber-600 border-amber-500 shadow-xl shadow-amber-200 dark:shadow-none'
+                            : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-amber-200 dark:hover:border-amber-900/50'}`}
+                      >
+                        <div className="relative z-10">
+                          <div className={`font-black text-[10px] uppercase tracking-widest ${selectedBatchIndex === idx ? 'text-amber-200' : 'text-slate-400'}`}>
+                            Batch #{idx + 1}
+                          </div>
+                          <div className={`font-bold text-base ${selectedBatchIndex === idx ? 'text-white' : 'text-slate-800 dark:text-slate-200'}`}>
+                            {Math.min(20, zohoLeads.length - (idx * 20))} Records
+                          </div>
+                          <div className={`text-[10px] mt-0.5 ${selectedBatchIndex === idx ? 'text-amber-100/70' : 'text-slate-500'}`}>
+                            Range: {(idx * 20) + 1} - {Math.min((idx + 1) * 20, zohoLeads.length)}
+                          </div>
+                        </div>
+                        <ChevronRight className={`w-5 h-5 transition-transform relative z-10 ${selectedBatchIndex === idx ? 'text-white translate-x-1' : 'text-slate-300 group-hover:translate-x-1'}`} />
+
+                        {selectedBatchIndex === idx && (
+                          <div className="absolute top-0 right-0 p-1 opacity-20">
+                            <Cloud className="w-12 h-12 -mr-4 -mt-4 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              {/* Detail View */}
+              <section className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px] relative">
+                {selectedBatchIndex === null || zohoLeads.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-6">
+                    <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center border-4 border-slate-100 dark:border-slate-700">
+                      <Share2 className="w-10 h-10 text-slate-200" />
+                    </div>
+                    <div className="max-w-xs">
+                      <h4 className="text-xl font-bold text-slate-800 dark:text-slate-200">Waiting for Selection</h4>
+                      <p className="text-slate-400 dark:text-slate-500 text-sm mt-2">Pick a batch from the sidebar to inspect records and trigger the CRM push.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Batch Control Banner */}
+                    <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-amber-500 text-white flex flex-col sm:flex-row justify-between items-center gap-6">
+                      <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+                          <Database className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <div className="font-black text-[10px] uppercase tracking-[0.2em] opacity-80">Sync Interface</div>
+                          <h3 className="text-2xl font-black">Ready to Push Batch #{selectedBatchIndex + 1}</h3>
+                          <p className="text-sm opacity-90 font-medium">Verify the 20 records below then click the sync action.</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleZohoBatchSync(selectedBatchIndex)}
+                        disabled={zohoSyncLoading}
+                        className="w-full sm:w-auto px-8 py-4 bg-white text-amber-600 rounded-2xl font-black text-lg shadow-2xl shadow-amber-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group disabled:opacity-50"
+                      >
+                        {zohoSyncLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Cloud className="w-6 h-6 group-hover:bounce" />}
+                        PUSH TO CRM
+                      </button>
+                    </div>
+
+                    {/* Records Table */}
+                    <div className="flex-1 overflow-auto bg-slate-50/50 dark:bg-slate-950 p-6">
+                      <div className="rounded-3xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+                        <table className="w-full text-left">
+                          <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest border-b border-slate-100 dark:border-slate-800">
+                            <tr>
+                              <th className="px-6 py-4">Status</th>
+                              <th className="px-6 py-4">Identity</th>
+                              <th className="px-6 py-4">Company</th>
+                              <th className="px-6 py-4 text-right">Instant Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                            {zohoLeads.slice(selectedBatchIndex * 20, (selectedBatchIndex + 1) * 20).map((lead, i) => (
+                              <tr key={lead.id} className="hover:bg-amber-50/30 dark:hover:bg-amber-900/10 transition-colors group">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[10px] font-mono text-slate-300 dark:text-slate-600">{(selectedBatchIndex * 20) + i + 1}</span>
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase 
+                                      ${lead.crm_status === 'Failed' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'}`}>
+                                      {lead.crm_status || 'Pending'}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="font-bold text-slate-800 dark:text-slate-200">
+                                    {`${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown'}
+                                  </div>
+                                  <div className="text-xs text-slate-500 flex flex-col md:flex-row md:items-center gap-1 md:gap-3 mt-0.5">
+                                    <span className="flex items-center gap-1"><FileText className="w-3 h-3 opacity-30" />{lead.email}</span>
+                                    {lead.phone && <span className="flex items-center gap-1"><Share2 className="w-3 h-3 opacity-30 rotate-90" />{lead.phone}</span>}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="font-medium text-slate-700 dark:text-slate-300">{lead.company || 'Individual'}</div>
+                                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {lead.source_id.slice(0, 10)}...</div>
+                                  {lead.error_message && (
+                                    <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/10 px-2 py-1 rounded inline-block mt-1">Error: {lead.error_message}</div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {lead.crm_status === 'Failed' && (
+                                      <button
+                                        onClick={() => handleZohoUndo(lead)}
+                                        className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl transition-all"
+                                        title="Reset Status"
+                                      >
+                                        <RotateCcw className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleZohoSyncSingle(lead)}
+                                      className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-2xl transition-all"
+                                      title="Push Single"
+                                    >
+                                      <ArrowRight className="w-5 h-5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </section>
+            </div>
+
+            {/* Recent Zoho Success History */}
+            <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-xl">
+                    <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 dark:text-slate-200">Recent CRM Success History</h3>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black">Showing records synced today</p>
+                  </div>
+                </div>
+                <button
+                  onClick={fetchZohoHistory}
+                  disabled={zohoHistoryLoading}
+                  className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all"
+                >
+                  <RefreshCw className={`w-4 h-4 text-slate-400 ${zohoHistoryLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+
+              <div className="overflow-x-auto custom-scrollbar">
+                {zohoHistoryLoading && zohoHistory.length === 0 ? (
+                  <div className="py-20 flex flex-col items-center justify-center space-y-3">
+                    <div className="w-10 h-10 border-4 border-emerald-100 border-t-emerald-500 rounded-full animate-spin"></div>
+                    <p className="text-sm font-bold text-slate-400">Fetching history...</p>
+                  </div>
+                ) : zohoHistory.length === 0 ? (
+                  <div className="py-20 flex flex-col items-center justify-center space-y-3 opacity-30 text-center">
+                    <Cloud className="w-12 h-12 text-slate-300" />
+                    <p className="text-sm font-bold text-slate-400">No history found.<br />Start syncing leads to see them here.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50/50 dark:bg-slate-900/50 text-[10px] uppercase font-black tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
+                      <tr>
+                        <th className="px-8 py-4">Lead Name</th>
+                        <th className="px-6 py-4">Organization</th>
+                        <th className="px-6 py-4">CRM ID / Timestamp</th>
+                        <th className="px-6 py-4 text-right pr-8">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                      {zohoHistory.map((lead) => (
+                        <tr key={lead.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="px-8 py-4">
+                            <div className="font-bold text-slate-800 dark:text-slate-200">{lead.first_name} {lead.last_name}</div>
+                            <div className="text-[10px] text-slate-400 font-mono italic">{lead.email || 'no-email'}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{lead.company || 'Individual'}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+                              <Share2 className="w-3 h-3" /> {lead.source_id ? lead.source_id.slice(0, 15) : 'N/A'}...
+                            </div>
+                            <div className="text-[9px] text-slate-400 mt-0.5">
+                              Synced {lead.crm_insert_time ? format(new Date(lead.crm_insert_time), 'MMM d, h:mm a') : 'Recently'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right pr-8">
+                            <div className="flex flex-col items-end gap-2">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">
+                                <CheckCircle className="w-3 h-3" /> Pushed
+                              </span>
+                              <button
+                                onClick={() => handleZohoUndo(lead)}
+                                className="p-1 px-2 bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 border border-slate-100 hover:border-amber-200 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all flex items-center gap-1"
+                                title="Undo Push (Return to Pending)"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" /> Undo
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </section>
           </div>

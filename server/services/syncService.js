@@ -18,7 +18,10 @@ const processSheetSync = async (sheet, batchId, triggerType, currentSyncTime) =>
     const sheetTitle = sheet.properties.title;
     const targetTableName = 'leads';
     // Unique temp table for this specific sheet execution
-    const tempTableName = `temp_${sanitizeIdentifier(sheetTitle)}_${batchId.replace(/-/g, '').substring(0, 8)}`;
+    // Postgres has a 63-byte limit for identifiers. 
+    // "temp_" (5) + sanitized title (max 40) + "_" (1) + batch suffix (8) = 54 chars max
+    const safeSheetPart = sanitizeIdentifier(sheetTitle).substring(0, 40);
+    const tempTableName = `temp_${safeSheetPart}_${batchId.replace(/-/g, '').substring(0, 8)}`;
 
     let logId = null;
     try {

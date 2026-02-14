@@ -1,0 +1,14 @@
+﻿[dotenv@17.2.3] injecting env (20) from .env -- tip: ≡ƒæÑ sync secrets across teammates & machines: https://dotenvx.com/ops
+--- Cleaning Leads Table ---
+
+--- Checking for other long specify/category columns ---
+Deep Action: Dropping likely unwanted column "brand_name"
+Deep Action: Dropping likely unwanted column "brand___company_name_______"
+Deep Action: Dropping likely unwanted column "please_specify_your_profession_"
+Deep Action: Dropping likely unwanted column "brand___company_name"
+Deep Action: Dropping likely unwanted column "company___brand_name"
+Deep Action: Dropping likely unwanted column "what_best_describes_your_brand_"
+Deep Action: Dropping likely unwanted column "which_category_best_describes_your_brand_"
+Deep Action: Dropping likely unwanted column "please_specify"
+
+Γ£à Cleanup Finished.

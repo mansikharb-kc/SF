@@ -1,0 +1,43 @@
+﻿[dotenv@17.2.3] injecting env (20) from .env -- tip: ΓÜÖ∩╕Å  override existing env vars with { override: true }
+Columns in leads table:
+[
+  '_batch_id',
+  '_created_at',
+  '_row_hash',
+  'ad_id',
+  'ad_name',
+  'adset_id',
+  'adset_name',
+  'are_you____',
+  'are_you_currently_a_student_or_graduate_',
+  'called_by',
+  'campaign_id',
+  'campaign_name',
+  'city',
+  'company_name',
+  'created_time',
+  'email',
+  'form_id',
+  'form_name',
+  'full_name',
+  'id',
+  'is_organic',
+  'job_title',
+  'lead_quality___remarks',
+  'lead_status',
+  'phone',
+  'platform',
+  'remarks',
+  'remarks___lead_quality',
+  'sheet_id',
+  'what_products_do_you_want_to_showcase_',
+  'what_s_your_college___university_name_',
+  'you_are_joining_as_a_',
+  'zoho_error',
+  'zoho_id',
+  'zoho_insert_time',
+  'zoho_status'
+]
+
+Columns in temp_leads table:
+[]

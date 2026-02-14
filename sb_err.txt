@@ -1,0 +1,7 @@
+getaddrinfo ENOTFOUND aws-1-ap-south-1.pooler.supabase.com
+{
+  "errno": -3008,
+  "code": "ENOTFOUND",
+  "syscall": "getaddrinfo",
+  "hostname": "aws-1-ap-south-1.pooler.supabase.com"
+}

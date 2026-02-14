@@ -12,6 +12,15 @@ const sanitizeIdentifier = (name) => {
  * Creates table if not exists based on headers
  */
 const RESERVED_COLUMNS = ['_row_hash', '_batch_id', '_created_at'];
+const COLUMNS_TO_IGNORE = [
+    'phone_number',
+    'select_your_category',
+    'select_your_category_',
+    'what_best_describes_you_',
+    'brand_',
+    'please_specify_best_describes_your',
+    'please_specify__brand_name_'
+];
 
 /**
  * Maps headers to safe column names, handling collisions
@@ -45,6 +54,11 @@ const ensureTableExists = async (tableName, headers) => {
     headers.forEach((h, index) => {
         let safeName = getSafeColumnName(h);
 
+        // Skip ignored columns
+        if (COLUMNS_TO_IGNORE.includes(safeName)) {
+            return;
+        }
+
         // Handle name collisions
         let finalName = safeName;
         let counter = 1;
@@ -62,7 +76,7 @@ const ensureTableExists = async (tableName, headers) => {
         }
     });
 
-    const columnsSQL = safeColumns.join(', ');
+    const columnsSQL = safeColumns.length > 0 ? safeColumns.join(', ') : '"_unused" TEXT'; // Fallback if all columns ignored
 
     const createQuery = `
     CREATE TABLE IF NOT EXISTS "${sanitizedTableName}" (
@@ -98,6 +112,16 @@ const ensureTableExists = async (tableName, headers) => {
                     }
                 }
             }
+
+            // --- ZOHO INTEGRATION COLUMNS ---
+            await client.query(`ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "zoho_status" VARCHAR(20) DEFAULT 'PENDING'`);
+            await client.query(`ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "zoho_id" VARCHAR(100)`);
+            await client.query(`ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "zoho_insert_time" TIMESTAMP`);
+            await client.query(`ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "zoho_error" TEXT`);
+
+            // --- SYSTEM COLUMNS ---
+            await client.query(`ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "_row_hash" VARCHAR(64)`);
+            await client.query(`ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "_batch_id" VARCHAR(64)`);
         }
     } finally {
         client.release();
@@ -123,7 +147,17 @@ const insertNewRecords = async (tableName, headers, rows, batchId) => {
     if (!rows || rows.length === 0) return 0;
 
     const sanitizedTableName = sanitizeIdentifier(tableName);
-    const safeHeaders = headers.map(h => getSafeColumnName(h));
+
+    // Map headers and identify which ones to keep
+    const headerMapping = headers.map((h, index) => {
+        const safeName = getSafeColumnName(h);
+        const shouldIgnore = COLUMNS_TO_IGNORE.includes(safeName);
+        return { index, safeName, shouldIgnore };
+    });
+
+    const activeFields = headerMapping.filter(m => !m.shouldIgnore);
+    const safeHeaders = activeFields.map(m => m.safeName);
+
     const fields = [...safeHeaders, '_row_hash', '_batch_id'];
     const columnsStr = fields.map(f => `"${f}"`).join(',');
 
@@ -153,7 +187,7 @@ const insertNewRecords = async (tableName, headers, rows, batchId) => {
                 return; // Skip this row
             }
 
-            const rowData = headers.map((_, colIdx) => row[colIdx] || null);
+            const rowData = activeFields.map(m => row[m.index] || null);
             const hash = generateRowHash(rowData);
             flatValues.push(...rowData, hash, batchId);
 
@@ -305,21 +339,27 @@ const mergeTempToLeads = async (tempTable, targetTable) => {
         if (commonCols.length > 0) {
             const colsStr = commonCols.map(c => `"${c}"`).join(', ');
 
-            // Step 4: Insert Filtered Data using NOT EXISTS for better performance
-            const insertQuery = `INSERT INTO "${cleanTarget}" (${colsStr}) 
-                                SELECT ${colsStr} FROM "${cleanTemp}" AS t
-                                WHERE NOT EXISTS (
-                                    SELECT 1 FROM "${cleanTarget}" AS f 
-                                    WHERE f."${matchCol}" = t."${matchCol}"
-                                )
-                                AND NOT EXISTS (
-                                    SELECT 1 FROM "deleted_leads" AS d
-                                    WHERE d."${matchCol}" = t."${matchCol}"
-                                )`;
+            // Step 4: Merge Data using ON CONFLICT for UPSERT logic
+            // This ensures existing leads are updated with the latest batch_id and data
+            const updateSet = commonCols
+                .filter(c => c !== 'sheet_id')
+                .map(c => `"${c}" = EXCLUDED."${c}"`)
+                .join(', ');
 
-            const res = await client.query(insertQuery);
+            const mergeQuery = `
+                INSERT INTO "${cleanTarget}" (${colsStr}) 
+                SELECT ${colsStr} FROM "${cleanTemp}" AS t
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM "deleted_leads" AS d
+                    WHERE d."${matchCol}" = t."${matchCol}"
+                )
+                ON CONFLICT ("${matchCol}") 
+                DO UPDATE SET ${updateSet}, _created_at = NOW()
+            `;
+
+            const res = await client.query(mergeQuery);
             insertedCount = res.rowCount;
-            console.log(`✅ Sync Complete: ${insertedCount} new records inserted into ${cleanTarget}.`);
+            console.log(`✅ Sync Complete: ${insertedCount} records merged/updated in ${cleanTarget}.`);
         } else {
             console.error(`❌ Sync Failed: Required columns (including ${matchCol}) not found.`);
             console.log("Temp Table:", cleanTemp, "Cols:", columnNames);
